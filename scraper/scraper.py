@@ -239,21 +239,37 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
             print(f"  No comments found on post")
             return top_comments
         
-        # Get top-level comments (not replies) - use more specific selector
-        comments = page.query_selector_all('.comment:not(.child)')[:5]
+        # Get top-level comments only (not replies)
+        # Try multiple approaches to ensure we get only top-level comments
+        comments = []
         
-        # If no top-level comments found, try alternative approach
-        if not comments:
-            all_comments = page.query_selector_all('.comment')
-            # Filter for top-level comments by checking if they don't have a parent comment
-            comments = []
-            for comment in all_comments:
-                # Check if this comment is nested inside another comment
-                parent_comment = comment.query_selector('xpath=ancestor::div[contains(@class, "comment")]')
-                if not parent_comment:
+        # Method 1: Use CSS selector for direct children of commentarea
+        top_level_comments = page.query_selector_all('.commentarea > .sitetable > .comment')
+        if top_level_comments:
+            comments = top_level_comments[:5]
+            print(f"  Found {len(comments)} top-level comments using direct child selector")
+        else:
+            # Method 2: Use class-based filtering
+            potential_comments = page.query_selector_all('.comment')
+            for comment in potential_comments:
+                # Check if this comment has the 'child' class (indicates it's a reply)
+                class_attr = comment.get_attribute('class') or ''
+                if 'child' not in class_attr:
                     comments.append(comment)
                     if len(comments) >= 5:
                         break
+            print(f"  Found {len(comments)} top-level comments using class filtering")
+        
+        # Method 3: If still no comments, try data-depth attribute filtering
+        if not comments:
+            all_comments = page.query_selector_all('.comment[data-depth]')
+            for comment in all_comments:
+                depth = comment.get_attribute('data-depth')
+                if depth == '0':  # Top-level comments have depth 0
+                    comments.append(comment)
+                    if len(comments) >= 5:
+                        break
+            print(f"  Found {len(comments)} top-level comments using depth filtering")
         
         print(f"  Found {len(comments)} comments to process")
         
