@@ -30,14 +30,14 @@ def retry_with_backoff(func, max_retries=3, base_delay=1):
                 print(f"HTTP error (non-429) encountered: {e}")
                 raise e
             elif is_429_error and attempt < max_retries:
-                # 429 errors should be retried with backoff
+                # 429 errors should be retried with exponential backoff
                 delay = base_delay * (2 ** attempt)
                 print(f"Rate limited (429), retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries + 1})")
                 time.sleep(delay)
                 continue
             elif attempt < max_retries:
-                # Other errors (network, timeout, etc.) get one retry with shorter delay
-                delay = base_delay
+                # Other errors (network, timeout, etc.) get exponential backoff too
+                delay = base_delay * (2 ** attempt)
                 print(f"Error encountered, retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries + 1}): {e}")
                 time.sleep(delay)
                 continue
