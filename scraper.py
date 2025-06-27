@@ -100,16 +100,23 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
                     break
                     
                 try:
+                    print(f"DEBUG: Processing post element {posts_processed + 1}")
+                    print(f"DEBUG: Post element type: {type(post)}")
+                    
                     # Extract post title
+                    print(f"DEBUG: Attempting to query '.title a.title' on post element")
                     title_elem = post.query_selector('.title a.title')
                     if not title_elem:
+                        print(f"DEBUG: '.title a.title' not found, trying '.title a'")
                         title_elem = post.query_selector('.title a')
                     
                     if not title_elem:
                         print(f"Could not find title element in post {posts_processed + 1}")
                         continue
                         
+                    print(f"DEBUG: Getting inner text from title element")
                     title = title_elem.inner_text().strip()
+                    print(f"DEBUG: Getting href attribute from title element")
                     post_url = title_elem.get_attribute('href')
                     
                     if not title:
@@ -135,6 +142,10 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
                     
                 except Exception as e:
                     print(f"Error processing post: {e}")
+                    print(f"DEBUG: Error type: {type(e).__name__}")
+                    print(f"DEBUG: Error details: {str(e)}")
+                    if hasattr(e, 'args') and e.args:
+                        print(f"DEBUG: Error args: {e.args}")
                     continue
             
             # Try to go to next page
@@ -204,12 +215,20 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
         
         for i, comment in enumerate(comments):
             try:
+                print(f"    DEBUG: Processing comment {i+1}, element type: {type(comment)}")
+                
                 # Get comment body
+                print(f"    DEBUG: Querying '.usertext-body .md' on comment element")
                 body_elem = comment.query_selector('.usertext-body .md')
                 if not body_elem:
+                    print(f"    DEBUG: '.usertext-body .md' not found, trying '.usertext-body'")
                     body_elem = comment.query_selector('.usertext-body')
                 
-                body = body_elem.inner_text().strip() if body_elem else ''
+                if body_elem:
+                    print(f"    DEBUG: Getting inner text from comment body element")
+                    body = body_elem.inner_text().strip()
+                else:
+                    body = ''
                 
                 # Skip deleted/removed comments
                 if body in ['[deleted]', '[removed]', '']:
@@ -224,6 +243,10 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
                 
             except Exception as e:
                 print(f"    Error processing comment {i+1}: {e}")
+                print(f"    DEBUG: Comment error type: {type(e).__name__}")
+                print(f"    DEBUG: Comment error details: {str(e)}")
+                if hasattr(e, 'args') and e.args:
+                    print(f"    DEBUG: Comment error args: {e.args}")
                 continue
     
     except Exception as e:
