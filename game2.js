@@ -220,8 +220,17 @@ class RedditOrderingGame {
             return true;
         }
         
-        // Allow all other moves - the drag and drop logic will handle inserting
-        // between items without displacing locked items from their positions
+        // Check if moving would cause any locked items to shift
+        const minPos = Math.min(currentPosition, newPosition);
+        const maxPos = Math.max(currentPosition, newPosition);
+        
+        // Check if there are any locked positions between current and new position
+        for (let pos = minPos; pos <= maxPos; pos++) {
+            if (this.lockedPositions.has(pos) && pos !== currentPosition) {
+                return true; // Would displace a locked item
+            }
+        }
+        
         return false;
     }
 
