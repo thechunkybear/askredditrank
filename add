@@ -2,9 +2,9 @@
 
 ## Prerequisites
 
-1. Install playwright using UV:
+1. Initialize UV project and install playwright:
 ```bash
-uv add playwright
+uv sync
 uv run playwright install
 ```
 

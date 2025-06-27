@@ -1,0 +1,11 @@
+[project]
+name = "reddit-scraper"
+version = "0.1.0"
+description = "Reddit web scraper for r/askreddit posts"
+dependencies = [
+    "playwright>=1.40.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
