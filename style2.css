@@ -99,7 +99,7 @@ header p {
     user-select: none;
 }
 
-.answer-item:hover {
+.answer-item:hover:not(.locked) {
     border-color: #667eea;
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
 }
@@ -107,6 +107,21 @@ header p {
 .answer-item.dragging {
     opacity: 0.5;
     transform: rotate(5deg);
+}
+
+.answer-item.locked {
+    background: #d4edda;
+    border-color: #28a745;
+    cursor: default;
+}
+
+.answer-item.locked .rank-number {
+    background: #28a745;
+}
+
+.answer-item.locked .drag-handle {
+    color: #28a745;
+    font-weight: bold;
 }
 
 .drag-handle {
@@ -137,6 +152,14 @@ header p {
 .answer-text {
     flex: 1;
     line-height: 1.4;
+    margin-right: 15px;
+}
+
+.vote-display {
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .controls {
@@ -216,6 +239,17 @@ header p {
     font-size: 0.9rem;
 }
 
+.partial-feedback {
+    text-align: center;
+    margin-top: 15px;
+    padding: 10px;
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 5px;
+    color: #0c5460;
+    font-weight: 600;
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 15px;
@@ -241,5 +275,9 @@ header p {
         width: 25px;
         height: 25px;
         margin-right: 10px;
+    }
+    
+    .vote-display {
+        font-size: 0.8rem;
     }
 }

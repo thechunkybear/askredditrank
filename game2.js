@@ -4,6 +4,8 @@ class RedditOrderingGame {
         this.currentQuestion = null;
         this.currentAnswers = [];
         this.userOrder = [];
+        this.lockedPositions = new Set();
+        this.attempts = 0;
     }
 
     async init() {
@@ -54,6 +56,10 @@ class RedditOrderingGame {
         document.getElementById('new-game-btn').style.display = 'none';
         document.getElementById('submit-btn').style.display = 'inline-block';
 
+        // Reset game state
+        this.lockedPositions.clear();
+        this.attempts = 0;
+
         this.selectGameData();
         this.renderGame();
     }
@@ -96,26 +102,36 @@ class RedditOrderingGame {
 
         this.userOrder.forEach((answer, index) => {
             const answerDiv = document.createElement('div');
-            answerDiv.className = 'answer-item';
-            answerDiv.draggable = true;
+            const isLocked = this.lockedPositions.has(index);
+            
+            answerDiv.className = `answer-item ${isLocked ? 'locked' : ''}`;
+            answerDiv.draggable = !isLocked;
             answerDiv.dataset.answerId = answer.id;
             answerDiv.innerHTML = `
-                <div class="drag-handle">⋮⋮</div>
+                <div class="drag-handle">${isLocked ? '✓' : '⋮⋮'}</div>
                 <div class="rank-number">${index + 1}</div>
                 <div class="answer-text">${answer.text}</div>
+                <div class="vote-display">${answer.votes.toLocaleString()} votes</div>
             `;
 
-            // Add drag event listeners
-            answerDiv.addEventListener('dragstart', (e) => this.handleDragStart(e));
-            answerDiv.addEventListener('dragover', (e) => this.handleDragOver(e));
-            answerDiv.addEventListener('drop', (e) => this.handleDrop(e));
-            answerDiv.addEventListener('dragend', (e) => this.handleDragEnd(e));
+            if (!isLocked) {
+                // Add drag event listeners only for unlocked items
+                answerDiv.addEventListener('dragstart', (e) => this.handleDragStart(e));
+                answerDiv.addEventListener('dragover', (e) => this.handleDragOver(e));
+                answerDiv.addEventListener('drop', (e) => this.handleDrop(e));
+                answerDiv.addEventListener('dragend', (e) => this.handleDragEnd(e));
+            }
 
             answersList.appendChild(answerDiv);
         });
     }
 
     handleDragStart(e) {
+        // Don't allow dragging locked items
+        if (e.target.classList.contains('locked')) {
+            e.preventDefault();
+            return;
+        }
         e.dataTransfer.setData('text/plain', e.target.dataset.answerId);
         e.target.classList.add('dragging');
     }
@@ -123,6 +139,8 @@ class RedditOrderingGame {
     handleDragOver(e) {
         e.preventDefault();
         const draggingElement = document.querySelector('.dragging');
+        if (!draggingElement) return;
+        
         const afterElement = this.getDragAfterElement(e.currentTarget.parentNode, e.clientY);
         
         if (afterElement == null) {
@@ -172,21 +190,53 @@ class RedditOrderingGame {
     }
 
     submitOrder() {
+        this.attempts++;
         const correctOrder = [...this.currentAnswers].sort((a, b) => a.originalRank - b.originalRank);
         const userOrderIds = this.userOrder.map(a => a.id);
         const correctOrderIds = correctOrder.map(a => a.id);
         
-        let correctPositions = 0;
+        // Check which positions are correct and lock them
         for (let i = 0; i < userOrderIds.length; i++) {
             if (userOrderIds[i] === correctOrderIds[i]) {
-                correctPositions++;
+                this.lockedPositions.add(i);
             }
         }
 
-        this.showResults(correctPositions, correctOrder);
+        // Check if all positions are correct
+        if (this.lockedPositions.size === this.currentAnswers.length) {
+            this.showFinalResults();
+        } else {
+            // Re-render to show locked positions
+            this.renderGame();
+            this.showPartialFeedback();
+        }
     }
 
-    showResults(correctPositions, correctOrder) {
+    showPartialFeedback() {
+        // Show a brief feedback message
+        const feedbackDiv = document.createElement('div');
+        feedbackDiv.className = 'partial-feedback';
+        feedbackDiv.innerHTML = `
+            <p>${this.lockedPositions.size} correct! Keep going...</p>
+        `;
+        
+        // Insert feedback after the ordering section
+        const orderingSection = document.querySelector('.ordering-section');
+        const existingFeedback = document.querySelector('.partial-feedback');
+        if (existingFeedback) {
+            existingFeedback.remove();
+        }
+        orderingSection.appendChild(feedbackDiv);
+        
+        // Remove feedback after 2 seconds
+        setTimeout(() => {
+            if (feedbackDiv.parentNode) {
+                feedbackDiv.remove();
+            }
+        }, 2000);
+    }
+
+    showFinalResults() {
         document.getElementById('game-container').style.display = 'none';
         document.getElementById('results').style.display = 'block';
         document.getElementById('new-game-btn').style.display = 'inline-block';
@@ -194,27 +244,28 @@ class RedditOrderingGame {
         const scoreDiv = document.getElementById('score');
         const correctOrderDiv = document.getElementById('correct-order');
 
-        // Show score
-        const totalAnswers = this.currentAnswers.length;
-        const percentage = Math.round((correctPositions / totalAnswers) * 100);
+        // Show final score
         scoreDiv.innerHTML = `
-            <h3>Your Score: ${correctPositions}/${totalAnswers} correct positions (${percentage}%)</h3>
+            <h3>Congratulations! 🎉</h3>
+            <p>You got all ${this.currentAnswers.length} answers in the correct order!</p>
+            <p>It took you ${this.attempts} attempt${this.attempts === 1 ? '' : 's'}.</p>
         `;
 
-        if (correctPositions === totalAnswers) {
-            scoreDiv.innerHTML += '<p style="color: #28a745;">Perfect! 🎉</p>';
-        } else if (correctPositions >= Math.ceil(totalAnswers * 0.6)) {
-            scoreDiv.innerHTML += '<p style="color: #ffc107;">Good job! 👍</p>';
+        if (this.attempts === 1) {
+            scoreDiv.innerHTML += '<p style="color: #28a745; font-weight: bold;">Perfect on the first try! 🏆</p>';
+        } else if (this.attempts <= 3) {
+            scoreDiv.innerHTML += '<p style="color: #28a745;">Excellent work! 👏</p>';
         } else {
-            scoreDiv.innerHTML += '<p style="color: #dc3545;">Keep trying! 💪</p>';
+            scoreDiv.innerHTML += '<p style="color: #ffc107;">Great persistence! 💪</p>';
         }
 
-        // Show correct order
-        correctOrderDiv.innerHTML = '<h4>Correct Order (by votes):</h4>';
+        // Show final order with votes
+        const correctOrder = [...this.currentAnswers].sort((a, b) => a.originalRank - b.originalRank);
+        correctOrderDiv.innerHTML = '<h4>Final Order (by votes):</h4>';
         const orderList = document.createElement('ol');
         correctOrder.forEach(answer => {
             const listItem = document.createElement('li');
-            listItem.innerHTML = `${answer.text} <span class="vote-count">(${answer.votes} votes)</span>`;
+            listItem.innerHTML = `${answer.text} <span class="vote-count">(${answer.votes.toLocaleString()} votes)</span>`;
             orderList.appendChild(listItem);
         });
         correctOrderDiv.appendChild(orderList);
