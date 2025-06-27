@@ -100,14 +100,10 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
                     break
                     
                 try:
-                    # Extract post data - try multiple selectors for title
-                    title_elem = None
-                    title_selectors = ['.title a.title', '.title a', 'h3 a', '[data-testid="post-title"]']
-                    
-                    for title_selector in title_selectors:
-                        title_elem = post.query_selector(title_selector)
-                        if title_elem:
-                            break
+                    # Extract post title
+                    title_elem = post.query_selector('.title a.title')
+                    if not title_elem:
+                        title_elem = post.query_selector('.title a')
                     
                     if not title_elem:
                         print(f"Could not find title element in post {posts_processed + 1}")
@@ -120,57 +116,13 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
                         print(f"Empty title found in post {posts_processed + 1}")
                         continue
                     
-                    # Get author - try multiple selectors
-                    author_elem = None
-                    author_selectors = ['.author', '[data-testid="post-author"]', '.by']
-                    
-                    for author_selector in author_selectors:
-                        author_elem = post.query_selector(author_selector)
-                        if author_elem:
-                            break
-                    
-                    author = author_elem.inner_text() if author_elem else '[deleted]'
-                    
-                    # Get score - try multiple selectors
-                    score_elem = None
-                    score_selectors = ['.score.unvoted', '.score', '[data-testid="post-vote-count"]']
-                    
-                    for score_selector in score_selectors:
-                        score_elem = post.query_selector(score_selector)
-                        if score_elem:
-                            break
-                    
-                    score_text = score_elem.inner_text() if score_elem else '0'
-                    score = parse_score(score_text)
-                    
-                    # Get number of comments - try multiple selectors
-                    comments_elem = None
-                    comments_selectors = ['.comments', '[data-testid="post-comment-count"]', '.comment-count']
-                    
-                    for comments_selector in comments_selectors:
-                        comments_elem = post.query_selector(comments_selector)
-                        if comments_elem:
-                            break
-                    
-                    comments_text = comments_elem.inner_text() if comments_elem else '0 comments'
-                    num_comments = parse_comments_count(comments_text)
-                    
-                    # Get timestamp
-                    time_elem = post.query_selector('time')
-                    created_date = time_elem.get_attribute('datetime') if time_elem else None
-                    
                     print(f"Processing post {posts_processed + 1}/{limit}: {title[:50]}...")
-                    print(f"  Author: {author}, Score: {score}, Comments: {num_comments}")
                     
                     # Get top comments by visiting the post
                     top_comments = get_top_comments(page, post_url)
                     
                     post_data = {
                         'title': title,
-                        'author': author,
-                        'score': score,
-                        'num_comments': num_comments,
-                        'created_date': created_date,
                         'url': post_url,
                         'top_comments': top_comments
                     }
@@ -252,25 +204,10 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
         
         for i, comment in enumerate(comments):
             try:
-                # Get comment author - try multiple selectors
-                author_elem = None
-                author_selectors = ['.author', '[data-testid="comment-author"]']
-                
-                for author_selector in author_selectors:
-                    author_elem = comment.query_selector(author_selector)
-                    if author_elem:
-                        break
-                
-                author = author_elem.inner_text() if author_elem else '[deleted]'
-                
-                # Get comment body - try multiple selectors
-                body_elem = None
-                body_selectors = ['.usertext-body .md', '.usertext-body', '[data-testid="comment-body"]']
-                
-                for body_selector in body_selectors:
-                    body_elem = comment.query_selector(body_selector)
-                    if body_elem:
-                        break
+                # Get comment body
+                body_elem = comment.query_selector('.usertext-body .md')
+                if not body_elem:
+                    body_elem = comment.query_selector('.usertext-body')
                 
                 body = body_elem.inner_text().strip() if body_elem else ''
                 
@@ -279,24 +216,10 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
                     print(f"    Skipping deleted/removed comment {i+1}")
                     continue
                 
-                # Get comment score - try multiple selectors
-                score_elem = None
-                score_selectors = ['.score', '[data-testid="comment-score"]']
-                
-                for score_selector in score_selectors:
-                    score_elem = comment.query_selector(score_selector)
-                    if score_elem:
-                        break
-                
-                score_text = score_elem.inner_text() if score_elem else '1'
-                score = parse_score(score_text)
-                
-                print(f"    Comment {i+1}: {body[:50]}... (score: {score})")
+                print(f"    Comment {i+1}: {body[:50]}...")
                 
                 top_comments.append({
-                    'author': author,
-                    'body': body,
-                    'score': score
+                    'body': body
                 })
                 
             except Exception as e:
@@ -308,31 +231,6 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
     
     return top_comments
 
-def parse_score(score_text: str) -> int:
-    """
-    Parse Reddit score text (handles k, m suffixes)
-    """
-    if not score_text or score_text == '•':
-        return 0
-    
-    score_text = score_text.lower().replace(',', '')
-    
-    if 'k' in score_text:
-        return int(float(score_text.replace('k', '')) * 1000)
-    elif 'm' in score_text:
-        return int(float(score_text.replace('m', '')) * 1000000)
-    else:
-        try:
-            return int(score_text)
-        except ValueError:
-            return 0
-
-def parse_comments_count(comments_text: str) -> int:
-    """
-    Parse comments count from text like "123 comments"
-    """
-    match = re.search(r'(\d+)', comments_text)
-    return int(match.group(1)) if match else 0
 
 def save_to_json(data: List[Dict[str, Any]], filename: str = 'askreddit_top_posts_2025.json'):
     """

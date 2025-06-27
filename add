@@ -29,16 +29,10 @@ The JSON file will contain an array of post objects with this structure:
 ```json
 {
   "title": "Post title",
-  "author": "username",
-  "score": 12345,
-  "num_comments": 678,
-  "created_date": "2025-01-01T12:00:00+00:00",
   "url": "https://reddit.com/...",
   "top_comments": [
     {
-      "author": "commenter",
-      "body": "Comment text",
-      "score": 123
+      "body": "Comment text"
     }
   ]
 }
