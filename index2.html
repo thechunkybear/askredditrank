@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit Answer Ordering Game</title>
+    <link rel="stylesheet" href="style2.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Reddit Answer Ordering Game</h1>
+            <p>Order the top 5 answers by their vote count (highest to lowest)</p>
+        </header>
+
+        <div id="loading" class="loading">
+            <p>Loading game data...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+            <p>Failed to load game data. Please refresh the page.</p>
+        </div>
+
+        <div id="game-container" class="game-container" style="display: none;">
+            <div class="question-section">
+                <h2>Question:</h2>
+                <div id="question-text" class="question-text"></div>
+            </div>
+
+            <div class="ordering-section">
+                <h3>Drag to order the answers from highest to lowest votes:</h3>
+                <div id="answers-list" class="answers-list"></div>
+            </div>
+
+            <div class="controls">
+                <button id="submit-btn" class="submit-btn">Submit Order</button>
+                <button id="new-game-btn" class="new-game-btn" style="display: none;">New Game</button>
+            </div>
+        </div>
+
+        <div id="results" class="results" style="display: none;">
+            <h2>Results</h2>
+            <div id="score" class="score"></div>
+            <div id="correct-order" class="correct-order"></div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="game2.js"></script>
+</body>
+</html>
