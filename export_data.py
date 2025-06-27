@@ -9,52 +9,60 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Get all questions
+    print("Fetching all questions with their top 10 answers in one query...")
+    
+    # Use a single query with window function to get top 10 answers per question
     cursor.execute("""
-        SELECT id, text, votes, timestamp, datetime 
-        FROM questions 
-        ORDER BY votes DESC
+        SELECT 
+            q.id,
+            q.text as question_text,
+            q.votes as question_votes,
+            q.timestamp,
+            q.datetime,
+            a.text as answer_text,
+            a.votes as answer_votes
+        FROM questions q
+        LEFT JOIN (
+            SELECT 
+                q_id,
+                text,
+                votes,
+                ROW_NUMBER() OVER (PARTITION BY q_id ORDER BY votes DESC) as rn
+            FROM answers
+        ) a ON q.id = a.q_id AND a.rn <= 10
+        ORDER BY q.votes DESC, q.id, a.votes DESC
     """)
     
-    questions = cursor.fetchall()
-    result = []
-    
-    print(f"Processing {len(questions)} questions...")
-    
-    for i, (q_id, q_text, q_votes, q_timestamp, q_datetime) in enumerate(questions):
-        if i % 1000 == 0:
-            print(f"Processed {i}/{len(questions)} questions...")
-        
-        # Get top 10 answers for this question
-        cursor.execute("""
-            SELECT text, votes 
-            FROM answers 
-            WHERE q_id = ? 
-            ORDER BY votes DESC 
-            LIMIT 10
-        """, (q_id,))
-        
-        answers = cursor.fetchall()
-        
-        # Format the data
-        question_data = {
-            'id': q_id,
-            'text': q_text,
-            'votes': q_votes,
-            'timestamp': q_timestamp,
-            'datetime': q_datetime,
-            'top_answers': [
-                {
-                    'text': answer_text,
-                    'votes': answer_votes
-                }
-                for answer_text, answer_votes in answers
-            ]
-        }
-        
-        result.append(question_data)
-    
+    rows = cursor.fetchall()
     conn.close()
+    
+    print(f"Processing {len(rows)} rows...")
+    
+    # Group results by question
+    questions_dict = {}
+    
+    for row in rows:
+        q_id, q_text, q_votes, q_timestamp, q_datetime, answer_text, answer_votes = row
+        
+        if q_id not in questions_dict:
+            questions_dict[q_id] = {
+                'id': q_id,
+                'text': q_text,
+                'votes': q_votes,
+                'timestamp': q_timestamp,
+                'datetime': q_datetime,
+                'top_answers': []
+            }
+        
+        # Add answer if it exists (LEFT JOIN might return NULL answers)
+        if answer_text is not None:
+            questions_dict[q_id]['top_answers'].append({
+                'text': answer_text,
+                'votes': answer_votes
+            })
+    
+    # Convert to list and maintain order by question votes
+    result = list(questions_dict.values())
     
     # Export to JSON
     with open(output_path, 'w', encoding='utf-8') as f:
