@@ -15,7 +15,7 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
     print(f"Fetching top {limit} posts from r/askreddit for {current_year}...")
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)  # Run in non-headless mode for debugging
         page = browser.new_page()
         
         # Set user agent to avoid detection
@@ -25,10 +25,65 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
         
         # Navigate to r/askreddit top posts of the year
         url = "https://old.reddit.com/r/AskReddit/top/?sort=top&t=year"
-        page.goto(url)
+        print(f"Navigating to: {url}")
         
-        # Wait for content to load
-        page.wait_for_selector('.thing', timeout=10000)
+        try:
+            response = page.goto(url, wait_until='networkidle')
+            print(f"Page loaded with status: {response.status}")
+            print(f"Page URL after navigation: {page.url}")
+            print(f"Page title: {page.title()}")
+            
+            # Take a screenshot for debugging
+            page.screenshot(path="debug_page.png")
+            print("Screenshot saved as debug_page.png")
+            
+            # Check if we're being redirected or blocked
+            if "reddit.com" not in page.url:
+                print(f"WARNING: Redirected away from Reddit to: {page.url}")
+            
+            # Try multiple selectors to see what's available
+            selectors_to_try = ['.thing', '.Post', '[data-testid="post"]', '.entry', 'article']
+            found_selector = None
+            
+            for selector in selectors_to_try:
+                try:
+                    print(f"Trying selector: {selector}")
+                    elements = page.query_selector_all(selector)
+                    print(f"Found {len(elements)} elements with selector '{selector}'")
+                    if elements:
+                        found_selector = selector
+                        break
+                except Exception as e:
+                    print(f"Error with selector '{selector}': {e}")
+            
+            if not found_selector:
+                print("No post elements found with any selector. Checking page content...")
+                page_content = page.content()
+                print(f"Page content length: {len(page_content)}")
+                
+                # Save page content for debugging
+                with open("debug_page.html", "w", encoding="utf-8") as f:
+                    f.write(page_content)
+                print("Page content saved as debug_page.html")
+                
+                # Check for common Reddit elements
+                if "reddit" in page_content.lower():
+                    print("Page contains 'reddit' text")
+                if "askreddit" in page_content.lower():
+                    print("Page contains 'askreddit' text")
+                if "top" in page_content.lower():
+                    print("Page contains 'top' text")
+                
+                raise Exception("Could not find any post elements on the page")
+            
+            print(f"Using selector: {found_selector}")
+            
+        except Exception as e:
+            print(f"Error during page navigation or element detection: {e}")
+            page.screenshot(path="error_page.png")
+            print("Error screenshot saved as error_page.png")
+            browser.close()
+            raise
         
         posts_processed = 0
         page_num = 1
@@ -37,32 +92,66 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
             print(f"Processing page {page_num}...")
             
             # Get all post elements on current page
-            posts = page.query_selector_all('.thing')
+            posts = page.query_selector_all(found_selector)
+            print(f"Found {len(posts)} posts on page {page_num}")
             
             for post in posts:
                 if posts_processed >= limit:
                     break
                     
                 try:
-                    # Extract post data
-                    title_elem = post.query_selector('.title a.title')
+                    # Extract post data - try multiple selectors for title
+                    title_elem = None
+                    title_selectors = ['.title a.title', '.title a', 'h3 a', '[data-testid="post-title"]']
+                    
+                    for title_selector in title_selectors:
+                        title_elem = post.query_selector(title_selector)
+                        if title_elem:
+                            break
+                    
                     if not title_elem:
+                        print(f"Could not find title element in post {posts_processed + 1}")
                         continue
                         
                     title = title_elem.inner_text().strip()
                     post_url = title_elem.get_attribute('href')
                     
-                    # Get author
-                    author_elem = post.query_selector('.author')
+                    if not title:
+                        print(f"Empty title found in post {posts_processed + 1}")
+                        continue
+                    
+                    # Get author - try multiple selectors
+                    author_elem = None
+                    author_selectors = ['.author', '[data-testid="post-author"]', '.by']
+                    
+                    for author_selector in author_selectors:
+                        author_elem = post.query_selector(author_selector)
+                        if author_elem:
+                            break
+                    
                     author = author_elem.inner_text() if author_elem else '[deleted]'
                     
-                    # Get score
-                    score_elem = post.query_selector('.score.unvoted')
+                    # Get score - try multiple selectors
+                    score_elem = None
+                    score_selectors = ['.score.unvoted', '.score', '[data-testid="post-vote-count"]']
+                    
+                    for score_selector in score_selectors:
+                        score_elem = post.query_selector(score_selector)
+                        if score_elem:
+                            break
+                    
                     score_text = score_elem.inner_text() if score_elem else '0'
                     score = parse_score(score_text)
                     
-                    # Get number of comments
-                    comments_elem = post.query_selector('.comments')
+                    # Get number of comments - try multiple selectors
+                    comments_elem = None
+                    comments_selectors = ['.comments', '[data-testid="post-comment-count"]', '.comment-count']
+                    
+                    for comments_selector in comments_selectors:
+                        comments_elem = post.query_selector(comments_selector)
+                        if comments_elem:
+                            break
+                    
                     comments_text = comments_elem.inner_text() if comments_elem else '0 comments'
                     num_comments = parse_comments_count(comments_text)
                     
@@ -71,6 +160,7 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
                     created_date = time_elem.get_attribute('datetime') if time_elem else None
                     
                     print(f"Processing post {posts_processed + 1}/{limit}: {title[:50]}...")
+                    print(f"  Author: {author}, Score: {score}, Comments: {num_comments}")
                     
                     # Get top comments by visiting the post
                     top_comments = get_top_comments(page, post_url)
@@ -99,11 +189,20 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
             next_button = page.query_selector('.next-button a')
             if next_button and posts_processed < limit:
                 next_url = next_button.get_attribute('href')
+                print(f"Navigating to next page: {next_url}")
                 page.goto(next_url)
-                page.wait_for_selector('.thing', timeout=10000)
+                
+                # Wait for posts to load on next page
+                try:
+                    page.wait_for_selector(found_selector, timeout=10000)
+                except Exception as e:
+                    print(f"Timeout waiting for posts on page {page_num + 1}: {e}")
+                    break
+                
                 page_num += 1
                 time.sleep(1)
             else:
+                print("No next button found or limit reached")
                 break
         
         browser.close()
@@ -121,30 +220,78 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
         if not post_url.startswith('http'):
             post_url = f"https://old.reddit.com{post_url}"
         
+        print(f"  Getting comments from: {post_url}")
         page.goto(post_url)
-        page.wait_for_selector('.comment', timeout=5000)
+        
+        # Try multiple comment selectors
+        comment_selectors = ['.comment', '[data-testid="comment"]', '.Comment']
+        found_comments = False
+        
+        for comment_selector in comment_selectors:
+            try:
+                page.wait_for_selector(comment_selector, timeout=5000)
+                found_comments = True
+                break
+            except:
+                continue
+        
+        if not found_comments:
+            print(f"  No comments found on post")
+            return top_comments
         
         # Get top-level comments (not replies)
-        comments = page.query_selector_all('.comment:not(.child)')[:5]
+        comment_selectors = ['.comment:not(.child)', '.comment', '[data-testid="comment"]']
+        comments = []
         
-        for comment in comments:
+        for comment_selector in comment_selectors:
+            comments = page.query_selector_all(comment_selector)[:5]
+            if comments:
+                break
+        
+        print(f"  Found {len(comments)} comments to process")
+        
+        for i, comment in enumerate(comments):
             try:
-                # Get comment author
-                author_elem = comment.query_selector('.author')
+                # Get comment author - try multiple selectors
+                author_elem = None
+                author_selectors = ['.author', '[data-testid="comment-author"]']
+                
+                for author_selector in author_selectors:
+                    author_elem = comment.query_selector(author_selector)
+                    if author_elem:
+                        break
+                
                 author = author_elem.inner_text() if author_elem else '[deleted]'
                 
-                # Get comment body
-                body_elem = comment.query_selector('.usertext-body .md')
+                # Get comment body - try multiple selectors
+                body_elem = None
+                body_selectors = ['.usertext-body .md', '.usertext-body', '[data-testid="comment-body"]']
+                
+                for body_selector in body_selectors:
+                    body_elem = comment.query_selector(body_selector)
+                    if body_elem:
+                        break
+                
                 body = body_elem.inner_text().strip() if body_elem else ''
                 
                 # Skip deleted/removed comments
                 if body in ['[deleted]', '[removed]', '']:
+                    print(f"    Skipping deleted/removed comment {i+1}")
                     continue
                 
-                # Get comment score
-                score_elem = comment.query_selector('.score')
+                # Get comment score - try multiple selectors
+                score_elem = None
+                score_selectors = ['.score', '[data-testid="comment-score"]']
+                
+                for score_selector in score_selectors:
+                    score_elem = comment.query_selector(score_selector)
+                    if score_elem:
+                        break
+                
                 score_text = score_elem.inner_text() if score_elem else '1'
                 score = parse_score(score_text)
+                
+                print(f"    Comment {i+1}: {body[:50]}... (score: {score})")
                 
                 top_comments.append({
                     'author': author,
@@ -153,7 +300,7 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
                 })
                 
             except Exception as e:
-                print(f"Error processing comment: {e}")
+                print(f"    Error processing comment {i+1}: {e}")
                 continue
     
     except Exception as e:
