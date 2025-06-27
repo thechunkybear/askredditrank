@@ -90,39 +90,16 @@ class RedditMatchingGame {
     }
 
     renderGame() {
-        this.renderQuestions();
-        this.renderAnswers();
-    }
+        const gameRowsContainer = document.getElementById('game-rows');
+        gameRowsContainer.innerHTML = '';
 
-    renderQuestions() {
-        const questionsContainer = document.getElementById('questions-list');
-        questionsContainer.innerHTML = '';
-
-        this.currentQuestions.forEach((question, index) => {
-            const questionDiv = document.createElement('div');
-            questionDiv.className = 'question-item';
-            questionDiv.dataset.questionId = question.id;
+        // Create 5 rows, each containing an answer and a question
+        for (let i = 0; i < 5; i++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'game-row';
             
-            const matchedAnswer = this.userMatches[question.id];
-            const matchIndicator = matchedAnswer !== undefined ? 
-                `<span class="match-indicator">${String.fromCharCode(65 + this.currentAnswers.findIndex(a => a.id === matchedAnswer))}</span>` : '';
-            
-            questionDiv.innerHTML = `
-                <span class="question-number">${index + 1}</span>
-                <span class="question-text">${question.text}</span>
-                ${matchIndicator}
-            `;
-
-            questionDiv.addEventListener('click', () => this.selectQuestion(question.id));
-            questionsContainer.appendChild(questionDiv);
-        });
-    }
-
-    renderAnswers() {
-        const answersContainer = document.getElementById('answers-list');
-        answersContainer.innerHTML = '';
-
-        this.currentAnswers.forEach((answer, index) => {
+            // Create answer item
+            const answer = this.currentAnswers[i];
             const answerDiv = document.createElement('div');
             answerDiv.className = 'answer-item';
             answerDiv.dataset.answerId = answer.id;
@@ -134,7 +111,7 @@ class RedditMatchingGame {
             }
             
             answerDiv.innerHTML = `
-                <span class="answer-letter">${String.fromCharCode(65 + index)}</span>
+                <span class="answer-letter">${String.fromCharCode(65 + i)}</span>
                 <span class="answer-text">${answer.text}</span>
             `;
 
@@ -142,8 +119,31 @@ class RedditMatchingGame {
                 answerDiv.addEventListener('click', () => this.selectAnswer(answer.id));
             }
             
-            answersContainer.appendChild(answerDiv);
-        });
+            // Create question item
+            const question = this.currentQuestions[i];
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-item';
+            questionDiv.dataset.questionId = question.id;
+            
+            const matchedAnswer = this.userMatches[question.id];
+            const matchIndicator = matchedAnswer !== undefined ? 
+                `<span class="match-indicator">${String.fromCharCode(65 + this.currentAnswers.findIndex(a => a.id === matchedAnswer))}</span>` : '';
+            
+            questionDiv.innerHTML = `
+                <span class="question-number">${i + 1}</span>
+                <span class="question-text">${question.text}</span>
+                ${matchIndicator}
+            `;
+
+            questionDiv.addEventListener('click', () => this.selectQuestion(question.id));
+            
+            // Add both items to the row
+            rowDiv.appendChild(answerDiv);
+            rowDiv.appendChild(questionDiv);
+            
+            // Add row to container
+            gameRowsContainer.appendChild(rowDiv);
+        }
     }
 
     selectQuestion(questionId) {
