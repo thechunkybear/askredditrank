@@ -12,6 +12,7 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
     print("Fetching all questions with their top 10 answers in one query...")
     
     # Use a single query with window function to get top 10 answers per question
+    # Only include questions where the top answer has at least 100 votes
     cursor.execute("""
         SELECT 
             q.id,
@@ -22,14 +23,15 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
             a.text as answer_text,
             a.votes as answer_votes
         FROM questions q
-        LEFT JOIN (
+        INNER JOIN (
             SELECT 
                 q_id,
                 text,
                 votes,
-                ROW_NUMBER() OVER (PARTITION BY q_id ORDER BY votes DESC) as rn
+                ROW_NUMBER() OVER (PARTITION BY q_id ORDER BY votes DESC) as rn,
+                MAX(votes) OVER (PARTITION BY q_id) as max_votes
             FROM answers
-        ) a ON q.id = a.q_id AND a.rn <= 10
+        ) a ON q.id = a.q_id AND a.rn <= 10 AND a.max_votes >= 100
         ORDER BY q.votes DESC, q.id, a.votes DESC
     """)
     
