@@ -211,26 +211,33 @@ class RedditOrderingGame {
         const allElements = Array.from(container.children);
         const currentPosition = allElements.indexOf(draggingElement);
         
-        // Create a new order array representing the desired final state
+        // Don't move if target position is locked
+        if (this.lockedPositions.has(targetPosition)) {
+            return;
+        }
+        
+        // Don't move if current position is locked (shouldn't happen, but safety check)
+        if (this.lockedPositions.has(currentPosition)) {
+            return;
+        }
+        
+        // For a simple swap between two unlocked positions, just swap the elements
+        const targetElement = allElements[targetPosition];
+        
+        // Create new order by swapping the two elements
         const newOrder = [...allElements];
+        newOrder[currentPosition] = targetElement;
+        newOrder[targetPosition] = draggingElement;
         
-        // Remove the dragging element from its current position
-        newOrder.splice(currentPosition, 1);
-        
-        // Insert it at the target position
-        newOrder.splice(targetPosition, 0, draggingElement);
-        
-        // Check if this new order would displace any locked items
+        // Verify that all locked items remain in their original positions
         let isValidMove = true;
         for (let i = 0; i < newOrder.length; i++) {
-            const elementId = parseInt(newOrder[i].dataset.answerId);
-            const originalElement = allElements.find(el => parseInt(el.dataset.answerId) === elementId);
-            const originalPosition = allElements.indexOf(originalElement);
-            
-            // If this element is locked and would be moved, reject the move
-            if (this.lockedPositions.has(originalPosition) && originalPosition !== i) {
-                isValidMove = false;
-                break;
+            if (this.lockedPositions.has(i)) {
+                // This position should contain the same element as before
+                if (newOrder[i] !== allElements[i]) {
+                    isValidMove = false;
+                    break;
+                }
             }
         }
         
