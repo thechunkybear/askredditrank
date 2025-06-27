@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit AskReddit Matching Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 AskReddit Matching Game</h1>
+            <p>Match the top answers with their questions!</p>
+        </header>
+
+        <div id="loading" class="loading">
+            <p>Loading questions and answers...</p>
+        </div>
+
+        <div id="game-container" class="game-container" style="display: none;">
+            <div class="game-board">
+                <div class="questions-section">
+                    <h2>Questions</h2>
+                    <div id="questions-list" class="questions-list">
+                        <!-- Questions will be populated here -->
+                    </div>
+                </div>
+
+                <div class="answers-section">
+                    <h2>Top Answers</h2>
+                    <div id="answers-list" class="answers-list">
+                        <!-- Answers will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-controls">
+                <button id="submit-btn" class="submit-btn" disabled>Submit Answers</button>
+                <button id="new-game-btn" class="new-game-btn" style="display: none;">New Game</button>
+            </div>
+
+            <div id="results" class="results" style="display: none;">
+                <h3>Results</h3>
+                <p id="score"></p>
+                <div id="correct-answers"></div>
+            </div>
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+            <p>Error loading game data. Please make sure data.json exists.</p>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
