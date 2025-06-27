@@ -215,18 +215,13 @@ class RedditOrderingGame {
             }
         });
         
-        // Check if any locked positions would be affected
-        for (let lockedPos of this.lockedPositions) {
-            if (newPosition <= lockedPos && currentPosition > lockedPos) {
-                // Moving up would push locked item down
-                return true;
-            }
-            if (newPosition >= lockedPos && currentPosition < lockedPos) {
-                // Moving down would push locked item up
-                return true;
-            }
+        // Don't allow dropping directly onto a locked position
+        if (this.lockedPositions.has(newPosition)) {
+            return true;
         }
         
+        // Allow all other moves - the drag and drop logic will handle inserting
+        // between items without displacing locked items from their positions
         return false;
     }
 
