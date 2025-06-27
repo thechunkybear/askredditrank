@@ -24,7 +24,19 @@ class RedditMatchingGame {
             throw new Error('Reddit data not found. Make sure data.js is loaded.');
         }
         
-        this.gameData = redditData;
+        // Convert minified format to standard format
+        // Minified format: [id, text, votes, timestamp, datetime, [[answer_text, votes], ...]]
+        this.gameData = redditData.map(item => ({
+            id: item[0],
+            text: item[1],
+            votes: item[2],
+            timestamp: item[3],
+            datetime: item[4],
+            top_answers: item[5].map(answer => ({
+                text: answer[0],
+                votes: answer[1]
+            }))
+        }));
         
         // Filter out questions without good answers
         this.gameData = this.gameData.filter(question => 
