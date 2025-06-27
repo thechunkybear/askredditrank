@@ -299,7 +299,7 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
     return top_comments
 
 
-def save_to_json(data: List[Dict[str, Any]], filename: str = '../data.json'):
+def save_to_json(data: List[Dict[str, Any]], filename: str = 'askreddit_top_posts_2025.json'):
     """
     Save the scraped data to a JSON file
     """
