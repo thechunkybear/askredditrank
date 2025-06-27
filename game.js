@@ -1,10 +1,10 @@
 class RedditMatchingGame {
     constructor() {
         this.gameData = [];
-        this.currentQuestions = [];
+        this.correctQuestion = null;
         this.currentAnswers = [];
-        this.userMatches = {}; // questionIndex -> answerIndex
-        this.selectedQuestion = null;
+        this.questionChoices = [];
+        this.selectedQuestionId = null;
         this.init();
     }
 
@@ -53,101 +53,84 @@ class RedditMatchingGame {
         document.getElementById('new-game-btn').style.display = 'none';
 
         // Reset game state
-        this.userMatches = {};
-        this.selectedQuestion = null;
+        this.selectedQuestionId = null;
 
         // Clear any previous result indicators
         document.querySelectorAll('.result-indicator').forEach(indicator => indicator.remove());
         document.querySelectorAll('.question-item, .answer-item').forEach(item => {
-            item.classList.remove('result-correct', 'result-incorrect');
+            item.classList.remove('result-correct', 'result-incorrect', 'selected');
         });
 
-        // Select 5 random posts
-        this.selectRandomPosts();
+        // Select game data
+        this.selectGameData();
         this.renderGame();
         this.updateSubmitButton();
     }
 
-    selectRandomPosts() {
-        // Shuffle and take first 5 posts
+    selectGameData() {
+        // Select one random post for the correct question and its answers
         const shuffled = [...this.gameData].sort(() => Math.random() - 0.5);
-        const selectedPosts = shuffled.slice(0, 5);
+        const correctPost = shuffled[0];
+        
+        this.correctQuestion = {
+            id: 0,
+            text: correctPost.title
+        };
 
-        this.currentQuestions = selectedPosts.map((post, index) => ({
+        // Get up to 5 top comments as answers
+        this.currentAnswers = correctPost.top_comments.slice(0, 5).map((comment, index) => ({
             id: index,
-            text: post.title,
-            correctAnswer: index // Each question's correct answer has the same index
+            text: comment.body
         }));
 
-        this.currentAnswers = selectedPosts.map((post, index) => {
-            // Pick a random comment from the available top comments
-            const randomCommentIndex = Math.floor(Math.random() * post.top_comments.length);
-            return {
-                id: index,
-                text: post.top_comments[randomCommentIndex].body,
-                questionId: index
-            };
-        });
+        // Select 4 other random questions as wrong choices
+        const otherPosts = shuffled.slice(1, 5);
+        
+        // Create question choices (1 correct + 4 wrong)
+        this.questionChoices = [
+            this.correctQuestion,
+            ...otherPosts.map((post, index) => ({
+                id: index + 1,
+                text: post.title
+            }))
+        ];
 
-        // Shuffle answers so they don't match the question order
-        this.currentAnswers.sort(() => Math.random() - 0.5);
+        // Shuffle question choices so correct answer isn't always first
+        this.questionChoices.sort(() => Math.random() - 0.5);
     }
 
     renderGame() {
-        const gameRowsContainer = document.getElementById('game-rows');
-        gameRowsContainer.innerHTML = '';
+        // Render answers
+        const answersContainer = document.getElementById('answers-container');
+        answersContainer.innerHTML = '';
 
-        // Create 5 rows, each containing an answer and a question
-        for (let i = 0; i < 5; i++) {
-            const rowDiv = document.createElement('div');
-            rowDiv.className = 'game-row';
-            
-            // Create answer item
-            const answer = this.currentAnswers[i];
+        this.currentAnswers.forEach((answer, index) => {
             const answerDiv = document.createElement('div');
             answerDiv.className = 'answer-item';
-            answerDiv.dataset.answerId = answer.id;
-            
-            // Check if this answer is already matched
-            const isMatched = Object.values(this.userMatches).includes(answer.id);
-            if (isMatched) {
-                answerDiv.classList.add('matched');
-            }
-            
             answerDiv.innerHTML = `
-                <span class="answer-letter">${String.fromCharCode(65 + i)}</span>
+                <span class="answer-letter">${String.fromCharCode(65 + index)}</span>
                 <span class="answer-text">${answer.text}</span>
             `;
+            answersContainer.appendChild(answerDiv);
+        });
 
-            if (!isMatched) {
-                answerDiv.addEventListener('click', () => this.selectAnswer(answer.id));
-            }
-            
-            // Create question item
-            const question = this.currentQuestions[i];
+        // Render question choices
+        const questionsContainer = document.getElementById('questions-container');
+        questionsContainer.innerHTML = '';
+
+        this.questionChoices.forEach((question, index) => {
             const questionDiv = document.createElement('div');
             questionDiv.className = 'question-item';
             questionDiv.dataset.questionId = question.id;
             
-            const matchedAnswer = this.userMatches[question.id];
-            const matchIndicator = matchedAnswer !== undefined ? 
-                `<span class="match-indicator">${String.fromCharCode(65 + this.currentAnswers.findIndex(a => a.id === matchedAnswer))}</span>` : '';
-            
             questionDiv.innerHTML = `
-                <span class="question-number">${i + 1}</span>
+                <span class="question-number">${index + 1}</span>
                 <span class="question-text">${question.text}</span>
-                ${matchIndicator}
             `;
 
             questionDiv.addEventListener('click', () => this.selectQuestion(question.id));
-            
-            // Add both items to the row
-            rowDiv.appendChild(answerDiv);
-            rowDiv.appendChild(questionDiv);
-            
-            // Add row to container
-            gameRowsContainer.appendChild(rowDiv);
-        }
+            questionsContainer.appendChild(questionDiv);
+        });
     }
 
     selectQuestion(questionId) {
@@ -157,100 +140,56 @@ class RedditMatchingGame {
         });
 
         // Select new question
-        this.selectedQuestion = questionId;
+        this.selectedQuestionId = questionId;
         document.querySelector(`[data-question-id="${questionId}"]`).classList.add('selected');
-    }
-
-    selectAnswer(answerId) {
-        if (this.selectedQuestion === null) {
-            alert('Please select a question first!');
-            return;
-        }
-
-        // Remove any existing match for this question
-        delete this.userMatches[this.selectedQuestion];
-
-        // Add new match
-        this.userMatches[this.selectedQuestion] = answerId;
-
-        // Clear selection
-        this.selectedQuestion = null;
-
-        // Re-render to update UI
-        this.renderGame();
+        
         this.updateSubmitButton();
     }
 
     updateSubmitButton() {
         const submitBtn = document.getElementById('submit-btn');
-        const allMatched = Object.keys(this.userMatches).length === 5;
-        submitBtn.disabled = !allMatched;
+        submitBtn.disabled = this.selectedQuestionId === null;
     }
 
     submitAnswers() {
-        let correctCount = 0;
-        const results = [];
-
-        this.currentQuestions.forEach(question => {
-            const userAnswerId = this.userMatches[question.id];
-            const isCorrect = userAnswerId === question.correctAnswer;
-            
-            if (isCorrect) correctCount++;
-
-            const userAnswer = this.currentAnswers.find(a => a.id === userAnswerId);
-            const correctAnswer = this.currentAnswers.find(a => a.id === question.correctAnswer);
-
-            results.push({
-                question: question.text,
-                userAnswer: userAnswer ? userAnswer.text : 'No answer selected',
-                correctAnswer: correctAnswer.text,
-                isCorrect
-            });
-        });
-
-        this.showResults(correctCount, results);
+        const isCorrect = this.selectedQuestionId === this.correctQuestion.id;
+        const selectedQuestion = this.questionChoices.find(q => q.id === this.selectedQuestionId);
+        
+        this.showResults(isCorrect, selectedQuestion.text, this.correctQuestion.text);
     }
 
-    showResults(correctCount, results) {
+    showResults(isCorrect, selectedQuestionText, correctQuestionText) {
         const resultsDiv = document.getElementById('results');
         const scoreP = document.getElementById('score');
 
-        scoreP.textContent = `You got ${correctCount} out of 5 correct! (${Math.round(correctCount/5*100)}%)`;
+        if (isCorrect) {
+            scoreP.textContent = `Correct! 🎉`;
+            scoreP.style.color = '#28a745';
+        } else {
+            scoreP.textContent = `Incorrect. The correct question was: "${correctQuestionText}"`;
+            scoreP.style.color = '#dc3545';
+        }
         
-        // Mark each question and answer as correct or incorrect
-        results.forEach((result, index) => {
-            const questionElement = document.querySelector(`[data-question-id="${index}"]`);
-            const userAnswerId = this.userMatches[index];
-            const userAnswerElement = document.querySelector(`[data-answer-id="${userAnswerId}"]`);
+        // Mark all questions as correct or incorrect
+        this.questionChoices.forEach(question => {
+            const questionElement = document.querySelector(`[data-question-id="${question.id}"]`);
             
-            if (result.isCorrect) {
+            if (question.id === this.correctQuestion.id) {
                 questionElement.classList.add('result-correct');
-                userAnswerElement.classList.add('result-correct');
                 
                 // Add correct indicator
                 const correctIndicator = document.createElement('span');
                 correctIndicator.className = 'result-indicator correct';
                 correctIndicator.textContent = '✓';
                 questionElement.appendChild(correctIndicator);
-                
-                const correctIndicator2 = document.createElement('span');
-                correctIndicator2.className = 'result-indicator correct';
-                correctIndicator2.textContent = '✓';
-                userAnswerElement.appendChild(correctIndicator2);
-            } else {
+            } else if (question.id === this.selectedQuestionId) {
                 questionElement.classList.add('result-incorrect');
-                userAnswerElement.classList.add('result-incorrect');
                 
                 // Add incorrect indicator
                 const incorrectIndicator = document.createElement('span');
                 incorrectIndicator.className = 'result-indicator incorrect';
                 incorrectIndicator.textContent = '✗';
                 questionElement.appendChild(incorrectIndicator);
-                
-                const incorrectIndicator2 = document.createElement('span');
-                incorrectIndicator2.className = 'result-indicator incorrect';
-                incorrectIndicator2.textContent = '✗';
-                userAnswerElement.appendChild(incorrectIndicator2);
             }
         });
 
