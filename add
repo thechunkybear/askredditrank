@@ -4,12 +4,12 @@
 
 1. Install required packages:
 ```bash
-pip install playwright
+pip3 install playwright
 ```
 
 2. Install Playwright browsers:
 ```bash
-playwright install
+python3 -m playwright install
 ```
 
 ## Usage
