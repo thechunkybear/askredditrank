@@ -2,21 +2,35 @@
 
 ## Prerequisites
 
-1. Install required packages:
+1. Install playwright using pipx (recommended):
 ```bash
-pip3 install playwright
+brew install pipx
+pipx install playwright
+pipx inject playwright playwright
+playwright install
 ```
 
-2. Install Playwright browsers:
+OR create a virtual environment:
 ```bash
-python3 -m playwright install
+python3 -m venv venv
+source venv/bin/activate
+pip install playwright
+playwright install
 ```
 
 ## Usage
 
 Run the scraper:
+
+If using pipx:
 ```bash
-python scraper.py
+python3 scraper.py
+```
+
+If using virtual environment:
+```bash
+source venv/bin/activate
+python3 scraper.py
 ```
 
 The script will:
