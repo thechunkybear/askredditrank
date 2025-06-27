@@ -3,7 +3,48 @@ import time
 from datetime import datetime
 import re
 from typing import List, Dict, Any
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+
+def retry_with_backoff(func, max_retries=3, base_delay=1):
+    """
+    Retry a function with exponential backoff for HTTP 429 errors
+    """
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except Exception as e:
+            # Check if this is an HTTP error by looking at the response
+            is_429_error = False
+            is_http_error = False
+            
+            # Try to extract HTTP status from error message
+            error_str = str(e).lower()
+            if '429' in error_str or 'too many requests' in error_str:
+                is_429_error = True
+                is_http_error = True
+            elif any(code in error_str for code in ['400', '401', '403', '404', '500', '502', '503', '504']):
+                is_http_error = True
+            
+            if is_http_error and not is_429_error:
+                # Non-429 HTTP errors should fail immediately
+                print(f"HTTP error (non-429) encountered: {e}")
+                raise e
+            elif is_429_error and attempt < max_retries:
+                # 429 errors should be retried with backoff
+                delay = base_delay * (2 ** attempt)
+                print(f"Rate limited (429), retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries + 1})")
+                time.sleep(delay)
+                continue
+            elif attempt < max_retries:
+                # Other errors (network, timeout, etc.) get one retry with shorter delay
+                delay = base_delay
+                print(f"Error encountered, retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                time.sleep(delay)
+                continue
+            else:
+                # Max retries reached
+                print(f"Max retries reached, failing: {e}")
+                raise e
 
 def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
     """
@@ -69,7 +110,13 @@ def collect_post_urls(page, limit: int) -> List[Dict[str, str]]:
     print(f"Navigating to: {url}")
     
     try:
-        response = page.goto(url, wait_until='networkidle')
+        def navigate_to_page():
+            response = page.goto(url, wait_until='networkidle')
+            if response.status >= 400:
+                raise Exception(f"HTTP {response.status} error when loading page")
+            return response
+        
+        response = retry_with_backoff(navigate_to_page)
         print(f"Page loaded with status: {response.status}")
         print(f"Page URL after navigation: {page.url}")
         print(f"Page title: {page.title()}")
@@ -191,7 +238,14 @@ def collect_post_urls(page, limit: int) -> List[Dict[str, str]]:
             if next_button:
                 next_url = next_button.get_attribute('href')
                 print(f"Navigating to next page: {next_url}")
-                page.goto(next_url)
+                
+                def navigate_to_next_page():
+                    response = page.goto(next_url)
+                    if response.status >= 400:
+                        raise Exception(f"HTTP {response.status} error when loading next page")
+                    return response
+                
+                retry_with_backoff(navigate_to_next_page)
                 
                 # Wait for posts to load on next page
                 try:
@@ -221,7 +275,14 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
             post_url = f"https://old.reddit.com{post_url}"
         
         print(f"  Getting comments from: {post_url}")
-        page.goto(post_url)
+        
+        def navigate_to_post():
+            response = page.goto(post_url)
+            if response.status >= 400:
+                raise Exception(f"HTTP {response.status} error when loading post")
+            return response
+        
+        retry_with_backoff(navigate_to_post)
         
         # Try multiple comment selectors
         comment_selectors = ['.comment', '[data-testid="comment"]', '.Comment']
