@@ -203,6 +203,10 @@ class RedditOrderingGame {
 
     submitOrder() {
         this.attempts++;
+        
+        // Ensure userOrder is up to date with current DOM order
+        this.updateUserOrder();
+        
         const correctOrder = [...this.currentAnswers].sort((a, b) => a.originalRank - b.originalRank);
         const userOrderIds = this.userOrder.map(a => a.id);
         const correctOrderIds = correctOrder.map(a => a.id);
