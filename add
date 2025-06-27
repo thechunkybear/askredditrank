@@ -1,0 +1,58 @@
+# Reddit API Scraper Setup
+
+## Prerequisites
+
+1. Install required packages:
+```bash
+pip install praw
+```
+
+2. Create a Reddit application:
+   - Go to https://www.reddit.com/prefs/apps
+   - Click "Create App" or "Create Another App"
+   - Choose "script" as the app type
+   - Note down your client ID and client secret
+
+3. Set environment variables:
+```bash
+export REDDIT_CLIENT_ID="your_client_id_here"
+export REDDIT_CLIENT_SECRET="your_client_secret_here"
+export REDDIT_USER_AGENT="AskReddit Scraper 1.0"
+```
+
+## Usage
+
+Run the scraper:
+```bash
+python scraper.py
+```
+
+The script will:
+- Connect to Reddit API
+- Fetch top 1000 posts from r/askreddit for the current year (2025)
+- Extract post title, author, score, and top 5 comments for each post
+- Save all data to `askreddit_top_posts_2025.json`
+
+## Output Format
+
+The JSON file will contain an array of post objects with this structure:
+```json
+{
+  "title": "Post title",
+  "author": "username",
+  "score": 12345,
+  "num_comments": 678,
+  "created_utc": 1234567890,
+  "created_date": "2025-01-01 12:00:00",
+  "url": "https://reddit.com/...",
+  "selftext": "Post body text",
+  "top_comments": [
+    {
+      "author": "commenter",
+      "body": "Comment text",
+      "score": 123,
+      "created_utc": 1234567890
+    }
+  ]
+}
+```
