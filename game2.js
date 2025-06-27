@@ -153,30 +153,32 @@ class RedditOrderingGame {
         const draggingElement = document.querySelector('.dragging');
         if (!draggingElement) return;
         
-        const afterElement = this.getDragAfterElement(e.currentTarget.parentNode, e.clientY);
         const container = e.currentTarget.parentNode;
+        const afterElement = this.getDragAfterElement(container, e.clientY);
         
         // Calculate what the new position would be
-        let newPosition;
+        let targetPosition;
         if (afterElement == null) {
-            newPosition = container.children.length - 1; // Last position (excluding the dragging element)
+            targetPosition = container.children.length - 1;
         } else {
-            newPosition = Array.from(container.children).indexOf(afterElement);
+            targetPosition = Array.from(container.children).indexOf(afterElement);
         }
         
-        // Check if this position would displace any locked items
-        if (this.wouldDisplaceLockedItems(newPosition)) {
-            return; // Don't allow the drop
+        // Don't allow dropping on locked positions
+        if (this.lockedPositions.has(targetPosition)) {
+            return;
         }
         
-        // Only move if the target position is not locked
-        if (!this.lockedPositions.has(newPosition)) {
-            if (afterElement == null) {
-                container.appendChild(draggingElement);
-            } else {
-                container.insertBefore(draggingElement, afterElement);
-            }
+        // Get current position of dragging element
+        const currentPosition = Array.from(container.children).indexOf(draggingElement);
+        
+        // Don't move if already in the right position
+        if (currentPosition === targetPosition) {
+            return;
         }
+        
+        // Perform the move while respecting locked positions
+        this.moveElementRespectingLocks(draggingElement, targetPosition, container);
     }
 
     handleDrop(e) {
@@ -202,6 +204,42 @@ class RedditOrderingGame {
                 return closest;
             }
         }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    moveElementRespectingLocks(draggingElement, targetPosition, container) {
+        // Get all elements and their current positions
+        const allElements = Array.from(container.children);
+        const currentPosition = allElements.indexOf(draggingElement);
+        
+        // Create a new order array representing the desired final state
+        const newOrder = [...allElements];
+        
+        // Remove the dragging element from its current position
+        newOrder.splice(currentPosition, 1);
+        
+        // Insert it at the target position
+        newOrder.splice(targetPosition, 0, draggingElement);
+        
+        // Check if this new order would displace any locked items
+        let isValidMove = true;
+        for (let i = 0; i < newOrder.length; i++) {
+            const elementId = parseInt(newOrder[i].dataset.answerId);
+            const originalElement = allElements.find(el => parseInt(el.dataset.answerId) === elementId);
+            const originalPosition = allElements.indexOf(originalElement);
+            
+            // If this element is locked and would be moved, reject the move
+            if (this.lockedPositions.has(originalPosition) && originalPosition !== i) {
+                isValidMove = false;
+                break;
+            }
+        }
+        
+        // Only perform the move if it doesn't displace locked items
+        if (isValidMove) {
+            // Clear the container and rebuild in the new order
+            container.innerHTML = '';
+            newOrder.forEach(element => container.appendChild(element));
+        }
     }
 
     wouldDisplaceLockedItems(newPosition) {
