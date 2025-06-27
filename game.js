@@ -79,11 +79,15 @@ class RedditMatchingGame {
             correctAnswer: index // Each question's correct answer has the same index
         }));
 
-        this.currentAnswers = selectedPosts.map((post, index) => ({
-            id: index,
-            text: post.top_comments[0].body,
-            questionId: index
-        }));
+        this.currentAnswers = selectedPosts.map((post, index) => {
+            // Pick a random comment from the available top comments
+            const randomCommentIndex = Math.floor(Math.random() * post.top_comments.length);
+            return {
+                id: index,
+                text: post.top_comments[randomCommentIndex].body,
+                questionId: index
+            };
+        });
 
         // Shuffle answers so they don't match the question order
         this.currentAnswers.sort(() => Math.random() - 0.5);
