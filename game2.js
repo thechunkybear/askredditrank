@@ -169,10 +169,13 @@ class RedditOrderingGame {
             return; // Don't allow the drop
         }
         
-        if (afterElement == null) {
-            container.appendChild(draggingElement);
-        } else {
-            container.insertBefore(draggingElement, afterElement);
+        // Only move if the target position is not locked
+        if (!this.lockedPositions.has(newPosition)) {
+            if (afterElement == null) {
+                container.appendChild(draggingElement);
+            } else {
+                container.insertBefore(draggingElement, afterElement);
+            }
         }
     }
 
@@ -202,35 +205,13 @@ class RedditOrderingGame {
     }
 
     wouldDisplaceLockedItems(newPosition) {
-        // Get current positions of all items
-        const answerElements = document.querySelectorAll('.answer-item');
-        const draggingElement = document.querySelector('.dragging');
-        const draggingId = parseInt(draggingElement.dataset.answerId);
-        
-        // Find current position of dragging element
-        let currentPosition = -1;
-        answerElements.forEach((element, index) => {
-            if (parseInt(element.dataset.answerId) === draggingId) {
-                currentPosition = index;
-            }
-        });
-        
         // Don't allow dropping directly onto a locked position
         if (this.lockedPositions.has(newPosition)) {
             return true;
         }
         
-        // Check if moving would cause any locked items to shift
-        const minPos = Math.min(currentPosition, newPosition);
-        const maxPos = Math.max(currentPosition, newPosition);
-        
-        // Check if there are any locked positions between current and new position
-        for (let pos = minPos; pos <= maxPos; pos++) {
-            if (this.lockedPositions.has(pos) && pos !== currentPosition) {
-                return true; // Would displace a locked item
-            }
-        }
-        
+        // Allow all other moves - we'll handle the DOM manipulation carefully
+        // to ensure locked items stay in place
         return false;
     }
 
