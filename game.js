@@ -26,16 +26,16 @@ class RedditMatchingGame {
         
         this.gameData = redditData;
         
-        // Filter out posts without good answers
-        this.gameData = this.gameData.filter(post => 
-            post.top_comments && 
-            post.top_comments.length > 0 && 
-            post.top_comments[0].body && 
-            post.top_comments[0].body.length > 10
+        // Filter out questions without good answers
+        this.gameData = this.gameData.filter(question => 
+            question.top_answers && 
+            question.top_answers.length > 0 && 
+            question.top_answers[0].text && 
+            question.top_answers[0].text.length > 10
         );
         
         if (this.gameData.length < 5) {
-            throw new Error('Not enough valid posts for the game');
+            throw new Error('Not enough valid questions for the game');
         }
     }
 
@@ -66,30 +66,30 @@ class RedditMatchingGame {
     }
 
     selectGameData() {
-        // Select one random post for the correct question and its answers
+        // Select one random question for the correct question and its answers
         const shuffled = [...this.gameData].sort(() => Math.random() - 0.5);
-        const correctPost = shuffled[0];
+        const correctQuestion = shuffled[0];
         
         this.correctQuestion = {
             id: 0,
-            text: correctPost.title
+            text: correctQuestion.text
         };
 
-        // Get up to 5 top comments as answers
-        this.currentAnswers = correctPost.top_comments.slice(0, 5).map((comment, index) => ({
+        // Get up to 5 top answers
+        this.currentAnswers = correctQuestion.top_answers.slice(0, 5).map((answer, index) => ({
             id: index,
-            text: comment.body
+            text: answer.text
         }));
 
         // Select 4 other random questions as wrong choices
-        const otherPosts = shuffled.slice(1, 5);
+        const otherQuestions = shuffled.slice(1, 5);
         
         // Create question choices (1 correct + 4 wrong)
         this.questionChoices = [
             this.correctQuestion,
-            ...otherPosts.map((post, index) => ({
+            ...otherQuestions.map((question, index) => ({
                 id: index + 1,
-                text: post.title
+                text: question.text
             }))
         ];
 
