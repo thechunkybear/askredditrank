@@ -1,5 +1,6 @@
 import json
 import time
+import random
 from datetime import datetime
 import re
 from typing import List, Dict, Any
@@ -51,6 +52,7 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
     Get top posts from r/askreddit for this year using Playwright
     """
     posts_data = []
+    failed_posts = []
     current_year = datetime.now().year
     
     print(f"Fetching top {limit} posts from r/askreddit for {current_year}...")
@@ -59,16 +61,30 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
         browser = p.chromium.launch(headless=False)  # Run in non-headless mode for debugging
         page = browser.new_page()
         
-        # Set user agent to avoid detection
+        # Set randomized user agent to avoid detection
+        user_agents = [
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+        ]
+        
         page.set_extra_http_headers({
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": random.choice(user_agents),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1"
         })
         
         # Step 1: Collect all post URLs first
         print("Step 1: Collecting post URLs...")
         post_urls = collect_post_urls(page, limit)
         
-        # Step 2: Visit each post and extract comments
+        # Step 2: Visit each post and extract comments (first pass)
         print(f"Step 2: Extracting comments from {len(post_urls)} posts...")
         for i, post_info in enumerate(post_urls):
             if i >= limit:
@@ -93,7 +109,36 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
                 
             except Exception as e:
                 print(f"Error processing post '{post_info['title'][:50]}': {e}")
+                # Add to failed queue for retry later
+                failed_posts.append(post_info)
                 continue
+        
+        # Step 3: Retry failed posts after a longer delay
+        if failed_posts:
+            print(f"\nStep 3: Retrying {len(failed_posts)} failed posts after 30 second delay...")
+            time.sleep(30)  # Wait 30 seconds before retrying
+            
+            for i, post_info in enumerate(failed_posts):
+                try:
+                    print(f"Retrying post {i+1}/{len(failed_posts)}: {post_info['title'][:50]}...")
+                    
+                    # Get top comments by visiting the post
+                    top_comments = get_top_comments(page, post_info['url'])
+                    
+                    post_data = {
+                        'title': post_info['title'],
+                        'url': post_info['url'],
+                        'top_comments': top_comments
+                    }
+                    
+                    posts_data.append(post_data)
+                    
+                    # Longer delay between retry attempts
+                    time.sleep(2)
+                    
+                except Exception as e:
+                    print(f"Failed again processing post '{post_info['title'][:50]}': {e}")
+                    continue
         
         browser.close()
     
@@ -276,13 +321,17 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
         
         print(f"  Getting comments from: {post_url}")
         
+        # Add random delay before navigation to avoid pattern detection
+        random_delay = 0.5 + (time.time() % 1.0)  # Random delay between 0.5-1.5 seconds
+        time.sleep(random_delay)
+        
         def navigate_to_post():
-            response = page.goto(post_url)
+            response = page.goto(post_url, timeout=30000)  # Increase timeout
             if response.status >= 400:
                 raise Exception(f"HTTP {response.status} error when loading post")
             return response
         
-        retry_with_backoff(navigate_to_post)
+        retry_with_backoff(navigate_to_post, max_retries=5, base_delay=2)  # Reduce retries for individual posts
         
         # Try multiple comment selectors
         comment_selectors = ['.comment', '[data-testid="comment"]', '.Comment']
