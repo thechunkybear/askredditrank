@@ -19,7 +19,7 @@ class RedditMatchingGame {
     }
 
     async loadData() {
-        const response = await fetch('data.json');
+        const response = await fetch('askreddit_top_posts_2025.json');
         if (!response.ok) {
             throw new Error('Failed to load data');
         }
