@@ -155,9 +155,24 @@ def collect_post_urls(page, limit: int) -> List[Dict[str, str]]:
                     print(f"Empty title or URL found in post {len(post_urls) + 1}")
                     continue
                 
+                # Skip ads and external links
+                if post_url.startswith('https://alb.reddit.com/') or post_url.startswith('http://alb.reddit.com/'):
+                    print(f"Skipping ad: {title[:50]}...")
+                    continue
+                
+                # Skip other external links that aren't Reddit posts
+                if post_url.startswith('http') and 'reddit.com' not in post_url:
+                    print(f"Skipping external link: {title[:50]}...")
+                    continue
+                
                 # Make sure URL is absolute
                 if not post_url.startswith('http'):
                     post_url = f"https://old.reddit.com{post_url}"
+                
+                # Additional check for Reddit post URLs
+                if '/comments/' not in post_url:
+                    print(f"Skipping non-post URL: {title[:50]}...")
+                    continue
                 
                 post_urls.append({
                     'title': title,
@@ -224,14 +239,21 @@ def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
             print(f"  No comments found on post")
             return top_comments
         
-        # Get top-level comments (not replies)
-        comment_selectors = ['.comment:not(.child)', '.comment', '[data-testid="comment"]']
-        comments = []
+        # Get top-level comments (not replies) - use more specific selector
+        comments = page.query_selector_all('.comment:not(.child)')[:5]
         
-        for comment_selector in comment_selectors:
-            comments = page.query_selector_all(comment_selector)[:5]
-            if comments:
-                break
+        # If no top-level comments found, try alternative approach
+        if not comments:
+            all_comments = page.query_selector_all('.comment')
+            # Filter for top-level comments by checking if they don't have a parent comment
+            comments = []
+            for comment in all_comments:
+                # Check if this comment is nested inside another comment
+                parent_comment = comment.query_selector('xpath=ancestor::div[contains(@class, "comment")]')
+                if not parent_comment:
+                    comments.append(comment)
+                    if len(comments) >= 5:
+                        break
         
         print(f"  Found {len(comments)} comments to process")
         
