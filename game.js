@@ -40,7 +40,6 @@ class RedditMatchingGame {
     }
 
     setupEventListeners() {
-        document.getElementById('submit-btn').addEventListener('click', () => this.submitAnswers());
         document.getElementById('new-game-btn').addEventListener('click', () => this.startNewGame());
     }
 
@@ -64,7 +63,6 @@ class RedditMatchingGame {
         // Select game data
         this.selectGameData();
         this.renderGame();
-        this.updateSubmitButton();
     }
 
     selectGameData() {
@@ -143,12 +141,8 @@ class RedditMatchingGame {
         this.selectedQuestionId = questionId;
         document.querySelector(`[data-question-id="${questionId}"]`).classList.add('selected');
         
-        this.updateSubmitButton();
-    }
-
-    updateSubmitButton() {
-        const submitBtn = document.getElementById('submit-btn');
-        submitBtn.disabled = this.selectedQuestionId === null;
+        // Immediately show results
+        this.submitAnswers();
     }
 
     submitAnswers() {

@@ -200,7 +200,7 @@ header p {
     margin-bottom: 30px;
 }
 
-.submit-btn, .new-game-btn {
+.new-game-btn {
     background: #667eea;
     color: white;
     border: none;
@@ -213,13 +213,8 @@ header p {
     margin: 0 10px;
 }
 
-.submit-btn:hover:not(:disabled), .new-game-btn:hover {
+.new-game-btn:hover {
     background: #5a6fd8;
-}
-
-.submit-btn:disabled {
-    background: #6c757d;
-    cursor: not-allowed;
 }
 
 .results {
