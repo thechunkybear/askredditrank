@@ -56,6 +56,12 @@ class RedditMatchingGame {
         this.userMatches = {};
         this.selectedQuestion = null;
 
+        // Clear any previous result indicators
+        document.querySelectorAll('.result-indicator').forEach(indicator => indicator.remove());
+        document.querySelectorAll('.question-item, .answer-item').forEach(item => {
+            item.classList.remove('result-correct', 'result-incorrect');
+        });
+
         // Select 5 random posts
         this.selectRandomPosts();
         this.renderGame();
@@ -204,22 +210,44 @@ class RedditMatchingGame {
     showResults(correctCount, results) {
         const resultsDiv = document.getElementById('results');
         const scoreP = document.getElementById('score');
-        const correctAnswersDiv = document.getElementById('correct-answers');
 
         scoreP.textContent = `You got ${correctCount} out of 5 correct! (${Math.round(correctCount/5*100)}%)`;
         
-        correctAnswersDiv.innerHTML = '';
+        // Mark each question and answer as correct or incorrect
         results.forEach((result, index) => {
-            const resultDiv = document.createElement('div');
-            resultDiv.className = `correct-answer ${result.isCorrect ? '' : 'wrong'}`;
+            const questionElement = document.querySelector(`[data-question-id="${index}"]`);
+            const userAnswerId = this.userMatches[index];
+            const userAnswerElement = document.querySelector(`[data-answer-id="${userAnswerId}"]`);
             
-            resultDiv.innerHTML = `
-                <strong>Question ${index + 1}:</strong> ${result.question}<br>
-                <strong>Your Answer:</strong> ${result.userAnswer}<br>
-                <strong>Correct Answer:</strong> ${result.correctAnswer}
-            `;
-            
-            correctAnswersDiv.appendChild(resultDiv);
+            if (result.isCorrect) {
+                questionElement.classList.add('result-correct');
+                userAnswerElement.classList.add('result-correct');
+                
+                // Add correct indicator
+                const correctIndicator = document.createElement('span');
+                correctIndicator.className = 'result-indicator correct';
+                correctIndicator.textContent = '✓';
+                questionElement.appendChild(correctIndicator);
+                
+                const correctIndicator2 = document.createElement('span');
+                correctIndicator2.className = 'result-indicator correct';
+                correctIndicator2.textContent = '✓';
+                userAnswerElement.appendChild(correctIndicator2);
+            } else {
+                questionElement.classList.add('result-incorrect');
+                userAnswerElement.classList.add('result-incorrect');
+                
+                // Add incorrect indicator
+                const incorrectIndicator = document.createElement('span');
+                incorrectIndicator.className = 'result-indicator incorrect';
+                incorrectIndicator.textContent = '✗';
+                questionElement.appendChild(incorrectIndicator);
+                
+                const incorrectIndicator2 = document.createElement('span');
+                incorrectIndicator2.className = 'result-indicator incorrect';
+                incorrectIndicator2.textContent = '✗';
+                userAnswerElement.appendChild(incorrectIndicator2);
+            }
         });
 
         resultsDiv.style.display = 'block';

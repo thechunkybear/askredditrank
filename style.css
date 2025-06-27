@@ -139,6 +139,46 @@ header p {
     font-weight: bold;
 }
 
+.result-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.result-indicator.correct {
+    background: #28a745;
+    color: white;
+}
+
+.result-indicator.incorrect {
+    background: #dc3545;
+    color: white;
+}
+
+.question-item.result-correct {
+    border-color: #28a745;
+    background: #f0fff4;
+}
+
+.question-item.result-incorrect {
+    border-color: #dc3545;
+    background: #fff5f5;
+}
+
+.answer-item.result-correct {
+    border-color: #28a745;
+    background: #f0fff4;
+}
+
+.answer-item.result-incorrect {
+    border-color: #dc3545;
+    background: #fff5f5;
+}
+
 .game-controls {
     text-align: center;
     margin-bottom: 30px;
