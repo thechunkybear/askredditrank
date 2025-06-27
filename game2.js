@@ -68,6 +68,12 @@ class RedditOrderingGame {
         document.getElementById('new-game-btn').style.display = 'none';
         document.getElementById('submit-btn').style.display = 'inline-block';
 
+        // Clean up any existing win messages
+        const existingWinMessage = document.querySelector('.win-message');
+        if (existingWinMessage) {
+            existingWinMessage.remove();
+        }
+
         // Reset game state
         this.lockedPositions.clear();
         this.attempts = 0;
@@ -326,38 +332,77 @@ class RedditOrderingGame {
     }
 
     showFinalResults() {
-        document.getElementById('game-container').style.display = 'none';
-        document.getElementById('results').style.display = 'block';
+        // Show confetti animation
+        this.showConfetti();
+        
+        // Hide submit button and show new game button
+        document.getElementById('submit-btn').style.display = 'none';
         document.getElementById('new-game-btn').style.display = 'inline-block';
 
-        const scoreDiv = document.getElementById('score');
-        const correctOrderDiv = document.getElementById('correct-order');
-
-        // Show final score
-        scoreDiv.innerHTML = `
+        // Create and show win message
+        const winMessage = document.createElement('div');
+        winMessage.className = 'win-message';
+        winMessage.innerHTML = `
             <h3>Congratulations! 🎉</h3>
             <p>You got all ${this.currentAnswers.length} answers in the correct order!</p>
             <p>It took you ${this.attempts} attempt${this.attempts === 1 ? '' : 's'}.</p>
+            ${this.attempts === 1 ? '<p style="font-weight: bold;">Perfect on the first try! 🏆</p>' : 
+              this.attempts <= 3 ? '<p>Excellent work! 👏</p>' : 
+              '<p>Great persistence! 💪</p>'}
         `;
 
-        if (this.attempts === 1) {
-            scoreDiv.innerHTML += '<p style="color: #28a745; font-weight: bold;">Perfect on the first try! 🏆</p>';
-        } else if (this.attempts <= 3) {
-            scoreDiv.innerHTML += '<p style="color: #28a745;">Excellent work! 👏</p>';
-        } else {
-            scoreDiv.innerHTML += '<p style="color: #ffc107;">Great persistence! 💪</p>';
+        // Insert win message after the ordering section
+        const orderingSection = document.querySelector('.ordering-section');
+        const existingWinMessage = document.querySelector('.win-message');
+        if (existingWinMessage) {
+            existingWinMessage.remove();
+        }
+        orderingSection.appendChild(winMessage);
+
+        // Show final order with votes in the answers list
+        this.showFinalOrderWithVotes();
+    }
+
+    showConfetti() {
+        const confettiContainer = document.createElement('div');
+        confettiContainer.className = 'confetti';
+        document.body.appendChild(confettiContainer);
+
+        // Create confetti pieces
+        for (let i = 0; i < 100; i++) {
+            const confettiPiece = document.createElement('div');
+            confettiPiece.className = 'confetti-piece';
+            confettiPiece.style.left = Math.random() * 100 + '%';
+            confettiPiece.style.animationDelay = Math.random() * 2 + 's';
+            confettiPiece.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            confettiContainer.appendChild(confettiPiece);
         }
 
-        // Show final order with votes
+        // Remove confetti after animation
+        setTimeout(() => {
+            if (confettiContainer.parentNode) {
+                confettiContainer.remove();
+            }
+        }, 5000);
+    }
+
+    showFinalOrderWithVotes() {
+        // Update the answers list to show the final order with votes
+        const answersList = document.getElementById('answers-list');
         const correctOrder = [...this.currentAnswers].sort((a, b) => a.originalRank - b.originalRank);
-        correctOrderDiv.innerHTML = '<h4>Final Order (by votes):</h4>';
-        const orderList = document.createElement('ol');
-        correctOrder.forEach(answer => {
-            const listItem = document.createElement('li');
-            listItem.innerHTML = `${answer.text} <span class="vote-count">(${answer.votes.toLocaleString()} votes)</span>`;
-            orderList.appendChild(listItem);
+        
+        answersList.innerHTML = '';
+        correctOrder.forEach((answer, index) => {
+            const answerDiv = document.createElement('div');
+            answerDiv.className = 'answer-item locked';
+            answerDiv.innerHTML = `
+                <div class="drag-handle">✓</div>
+                <div class="rank-number">${index + 1}</div>
+                <div class="answer-text">${answer.text}</div>
+                <div class="vote-display">${answer.votes.toLocaleString()} votes</div>
+            `;
+            answersList.appendChild(answerDiv);
         });
-        correctOrderDiv.appendChild(orderList);
     }
 
     showError() {
