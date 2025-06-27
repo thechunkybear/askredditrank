@@ -111,7 +111,7 @@ class RedditOrderingGame {
                 <div class="drag-handle">${isLocked ? '✓' : '⋮⋮'}</div>
                 <div class="rank-number">${index + 1}</div>
                 <div class="answer-text">${answer.text}</div>
-                <div class="vote-display">${answer.votes.toLocaleString()} votes</div>
+                ${isLocked ? `<div class="vote-display">${answer.votes.toLocaleString()} votes</div>` : ''}
             `;
 
             if (!isLocked) {
