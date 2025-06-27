@@ -30,7 +30,7 @@ class RedditOrderingGame {
         
         // Filter out questions without at least 3 good answers (reduced from 5)
         this.gameData = this.gameData.filter(question => 
-            question.answers && Array.isArray(question.answers) && question.answers.length >= 3
+            question.top_answers && Array.isArray(question.top_answers) && question.top_answers.length >= 3
         );
 
         console.log(`Found ${this.gameData.length} suitable questions`);
@@ -64,8 +64,8 @@ class RedditOrderingGame {
         this.currentQuestion = this.gameData[randomIndex];
         
         // Take up to 5 answers (or however many are available) and shuffle them for display
-        const numAnswers = Math.min(5, this.currentQuestion.answers.length);
-        this.currentAnswers = this.currentQuestion.answers.slice(0, numAnswers).map((answer, index) => ({
+        const numAnswers = Math.min(5, this.currentQuestion.top_answers.length);
+        this.currentAnswers = this.currentQuestion.top_answers.slice(0, numAnswers).map((answer, index) => ({
             id: index,
             text: answer.text,
             votes: answer.votes,
