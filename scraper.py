@@ -215,8 +215,8 @@ def main():
     except Exception as e:
         print(f"Error occurred: {str(e)}")
         print("\nMake sure you have installed Playwright and its browsers:")
-        print("pip install playwright")
-        print("playwright install")
+        print("uv add playwright")
+        print("uv run playwright install")
 
 if __name__ == "__main__":
     main()
