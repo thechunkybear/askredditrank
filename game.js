@@ -19,11 +19,12 @@ class RedditMatchingGame {
     }
 
     async loadData() {
-        const response = await fetch('askreddit_top_posts_2025.json');
-        if (!response.ok) {
-            throw new Error('Failed to load data');
+        // Data is now loaded from data.js as a global variable
+        if (typeof redditData === 'undefined') {
+            throw new Error('Reddit data not found. Make sure data.js is loaded.');
         }
-        this.gameData = await response.json();
+        
+        this.gameData = redditData;
         
         // Filter out posts without good answers
         this.gameData = this.gameData.filter(post => 
