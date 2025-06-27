@@ -154,11 +154,25 @@ class RedditOrderingGame {
         if (!draggingElement) return;
         
         const afterElement = this.getDragAfterElement(e.currentTarget.parentNode, e.clientY);
+        const container = e.currentTarget.parentNode;
+        
+        // Calculate what the new position would be
+        let newPosition;
+        if (afterElement == null) {
+            newPosition = container.children.length - 1; // Last position (excluding the dragging element)
+        } else {
+            newPosition = Array.from(container.children).indexOf(afterElement);
+        }
+        
+        // Check if this position would displace any locked items
+        if (this.wouldDisplaceLockedItems(newPosition)) {
+            return; // Don't allow the drop
+        }
         
         if (afterElement == null) {
-            e.currentTarget.parentNode.appendChild(draggingElement);
+            container.appendChild(draggingElement);
         } else {
-            e.currentTarget.parentNode.insertBefore(draggingElement, afterElement);
+            container.insertBefore(draggingElement, afterElement);
         }
     }
 
@@ -185,6 +199,35 @@ class RedditOrderingGame {
                 return closest;
             }
         }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    wouldDisplaceLockedItems(newPosition) {
+        // Get current positions of all items
+        const answerElements = document.querySelectorAll('.answer-item');
+        const draggingElement = document.querySelector('.dragging');
+        const draggingId = parseInt(draggingElement.dataset.answerId);
+        
+        // Find current position of dragging element
+        let currentPosition = -1;
+        answerElements.forEach((element, index) => {
+            if (parseInt(element.dataset.answerId) === draggingId) {
+                currentPosition = index;
+            }
+        });
+        
+        // Check if any locked positions would be affected
+        for (let lockedPos of this.lockedPositions) {
+            if (newPosition <= lockedPos && currentPosition > lockedPos) {
+                // Moving up would push locked item down
+                return true;
+            }
+            if (newPosition >= lockedPos && currentPosition < lockedPos) {
+                // Moving down would push locked item up
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     updateUserOrder() {
