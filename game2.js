@@ -25,13 +25,18 @@ class RedditOrderingGame {
         
         this.gameData = redditData;
         
-        // Filter out questions without at least 5 good answers
+        // Debug: Log the structure of the first few items
+        console.log('Sample data structure:', this.gameData.slice(0, 2));
+        
+        // Filter out questions without at least 3 good answers (reduced from 5)
         this.gameData = this.gameData.filter(question => 
-            question.answers && question.answers.length >= 5
+            question.answers && Array.isArray(question.answers) && question.answers.length >= 3
         );
 
+        console.log(`Found ${this.gameData.length} suitable questions`);
+
         if (this.gameData.length === 0) {
-            throw new Error('No suitable questions found in the data.');
+            throw new Error('No suitable questions found in the data. Check console for data structure.');
         }
     }
 
@@ -58,8 +63,9 @@ class RedditOrderingGame {
         const randomIndex = Math.floor(Math.random() * this.gameData.length);
         this.currentQuestion = this.gameData[randomIndex];
         
-        // Take the top 5 answers and shuffle them for display
-        this.currentAnswers = this.currentQuestion.answers.slice(0, 5).map((answer, index) => ({
+        // Take up to 5 answers (or however many are available) and shuffle them for display
+        const numAnswers = Math.min(5, this.currentQuestion.answers.length);
+        this.currentAnswers = this.currentQuestion.answers.slice(0, numAnswers).map((answer, index) => ({
             id: index,
             text: answer.text,
             votes: answer.votes,
@@ -189,14 +195,15 @@ class RedditOrderingGame {
         const correctOrderDiv = document.getElementById('correct-order');
 
         // Show score
-        const percentage = Math.round((correctPositions / 5) * 100);
+        const totalAnswers = this.currentAnswers.length;
+        const percentage = Math.round((correctPositions / totalAnswers) * 100);
         scoreDiv.innerHTML = `
-            <h3>Your Score: ${correctPositions}/5 correct positions (${percentage}%)</h3>
+            <h3>Your Score: ${correctPositions}/${totalAnswers} correct positions (${percentage}%)</h3>
         `;
 
-        if (correctPositions === 5) {
+        if (correctPositions === totalAnswers) {
             scoreDiv.innerHTML += '<p style="color: #28a745;">Perfect! 🎉</p>';
-        } else if (correctPositions >= 3) {
+        } else if (correctPositions >= Math.ceil(totalAnswers * 0.6)) {
             scoreDiv.innerHTML += '<p style="color: #ffc107;">Good job! 👍</p>';
         } else {
             scoreDiv.innerHTML += '<p style="color: #dc3545;">Keep trying! 💪</p>';
