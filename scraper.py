@@ -23,134 +23,157 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
         
-        # Navigate to r/askreddit top posts of the year
-        url = "https://old.reddit.com/r/AskReddit/top/?sort=top&t=year"
-        print(f"Navigating to: {url}")
+        # Step 1: Collect all post URLs first
+        print("Step 1: Collecting post URLs...")
+        post_urls = collect_post_urls(page, limit)
         
-        try:
-            response = page.goto(url, wait_until='networkidle')
-            print(f"Page loaded with status: {response.status}")
-            print(f"Page URL after navigation: {page.url}")
-            print(f"Page title: {page.title()}")
-            
-            # Take a screenshot for debugging
-            page.screenshot(path="debug_page.png")
-            print("Screenshot saved as debug_page.png")
-            
-            # Check if we're being redirected or blocked
-            if "reddit.com" not in page.url:
-                print(f"WARNING: Redirected away from Reddit to: {page.url}")
-            
-            # Try multiple selectors to see what's available
-            selectors_to_try = ['.thing', '.Post', '[data-testid="post"]', '.entry', 'article']
-            found_selector = None
-            
-            for selector in selectors_to_try:
-                try:
-                    print(f"Trying selector: {selector}")
-                    elements = page.query_selector_all(selector)
-                    print(f"Found {len(elements)} elements with selector '{selector}'")
-                    if elements:
-                        found_selector = selector
-                        break
-                except Exception as e:
-                    print(f"Error with selector '{selector}': {e}")
-            
-            if not found_selector:
-                print("No post elements found with any selector. Checking page content...")
-                page_content = page.content()
-                print(f"Page content length: {len(page_content)}")
+        # Step 2: Visit each post and extract comments
+        print(f"Step 2: Extracting comments from {len(post_urls)} posts...")
+        for i, post_info in enumerate(post_urls):
+            if i >= limit:
+                break
                 
-                # Save page content for debugging
-                with open("debug_page.html", "w", encoding="utf-8") as f:
-                    f.write(page_content)
-                print("Page content saved as debug_page.html")
+            try:
+                print(f"Processing post {i+1}/{len(post_urls)}: {post_info['title'][:50]}...")
                 
-                # Check for common Reddit elements
-                if "reddit" in page_content.lower():
-                    print("Page contains 'reddit' text")
-                if "askreddit" in page_content.lower():
-                    print("Page contains 'askreddit' text")
-                if "top" in page_content.lower():
-                    print("Page contains 'top' text")
+                # Get top comments by visiting the post
+                top_comments = get_top_comments(page, post_info['url'])
                 
-                raise Exception("Could not find any post elements on the page")
-            
-            print(f"Using selector: {found_selector}")
-            
-        except Exception as e:
-            print(f"Error during page navigation or element detection: {e}")
-            page.screenshot(path="error_page.png")
-            print("Error screenshot saved as error_page.png")
-            browser.close()
-            raise
+                post_data = {
+                    'title': post_info['title'],
+                    'url': post_info['url'],
+                    'top_comments': top_comments
+                }
+                
+                posts_data.append(post_data)
+                
+                # Small delay between posts
+                time.sleep(0.5)
+                
+            except Exception as e:
+                print(f"Error processing post '{post_info['title'][:50]}': {e}")
+                continue
         
-        posts_processed = 0
-        page_num = 1
+        browser.close()
+    
+    return posts_data
+
+def collect_post_urls(page, limit: int) -> List[Dict[str, str]]:
+    """
+    Collect post URLs and titles from multiple pages
+    """
+    post_urls = []
+    
+    # Navigate to r/askreddit top posts of the year
+    url = "https://old.reddit.com/r/AskReddit/top/?sort=top&t=year"
+    print(f"Navigating to: {url}")
+    
+    try:
+        response = page.goto(url, wait_until='networkidle')
+        print(f"Page loaded with status: {response.status}")
+        print(f"Page URL after navigation: {page.url}")
+        print(f"Page title: {page.title()}")
         
-        while posts_processed < limit:
-            print(f"Processing page {page_num}...")
-            
-            # Get all post elements on current page
-            posts = page.query_selector_all(found_selector)
-            print(f"Found {len(posts)} posts on page {page_num}")
-            
-            for post in posts:
-                if posts_processed >= limit:
+        # Take a screenshot for debugging
+        page.screenshot(path="debug_page.png")
+        print("Screenshot saved as debug_page.png")
+        
+        # Check if we're being redirected or blocked
+        if "reddit.com" not in page.url:
+            print(f"WARNING: Redirected away from Reddit to: {page.url}")
+        
+        # Try multiple selectors to see what's available
+        selectors_to_try = ['.thing', '.Post', '[data-testid="post"]', '.entry', 'article']
+        found_selector = None
+        
+        for selector in selectors_to_try:
+            try:
+                print(f"Trying selector: {selector}")
+                elements = page.query_selector_all(selector)
+                print(f"Found {len(elements)} elements with selector '{selector}'")
+                if elements:
+                    found_selector = selector
                     break
-                    
-                try:
-                    print(f"DEBUG: Processing post element {posts_processed + 1}")
-                    print(f"DEBUG: Post element type: {type(post)}")
-                    
-                    # Extract post title
-                    print(f"DEBUG: Attempting to query '.title a.title' on post element")
-                    title_elem = post.query_selector('.title a.title')
-                    if not title_elem:
-                        print(f"DEBUG: '.title a.title' not found, trying '.title a'")
-                        title_elem = post.query_selector('.title a')
-                    
-                    if not title_elem:
-                        print(f"Could not find title element in post {posts_processed + 1}")
-                        continue
-                        
-                    print(f"DEBUG: Getting inner text from title element")
-                    title = title_elem.inner_text().strip()
-                    print(f"DEBUG: Getting href attribute from title element")
-                    post_url = title_elem.get_attribute('href')
-                    
-                    if not title:
-                        print(f"Empty title found in post {posts_processed + 1}")
-                        continue
-                    
-                    print(f"Processing post {posts_processed + 1}/{limit}: {title[:50]}...")
-                    
-                    # Get top comments by visiting the post
-                    top_comments = get_top_comments(page, post_url)
-                    
-                    post_data = {
-                        'title': title,
-                        'url': post_url,
-                        'top_comments': top_comments
-                    }
-                    
-                    posts_data.append(post_data)
-                    posts_processed += 1
-                    
-                    # Small delay between posts
-                    time.sleep(0.5)
-                    
-                except Exception as e:
-                    print(f"Error processing post: {e}")
-                    print(f"DEBUG: Error type: {type(e).__name__}")
-                    print(f"DEBUG: Error details: {str(e)}")
-                    if hasattr(e, 'args') and e.args:
-                        print(f"DEBUG: Error args: {e.args}")
-                    continue
+            except Exception as e:
+                print(f"Error with selector '{selector}': {e}")
+        
+        if not found_selector:
+            print("No post elements found with any selector. Checking page content...")
+            page_content = page.content()
+            print(f"Page content length: {len(page_content)}")
             
-            # Try to go to next page
+            # Save page content for debugging
+            with open("debug_page.html", "w", encoding="utf-8") as f:
+                f.write(page_content)
+            print("Page content saved as debug_page.html")
+            
+            # Check for common Reddit elements
+            if "reddit" in page_content.lower():
+                print("Page contains 'reddit' text")
+            if "askreddit" in page_content.lower():
+                print("Page contains 'askreddit' text")
+            if "top" in page_content.lower():
+                print("Page contains 'top' text")
+            
+            raise Exception("Could not find any post elements on the page")
+        
+        print(f"Using selector: {found_selector}")
+        
+    except Exception as e:
+        print(f"Error during page navigation or element detection: {e}")
+        page.screenshot(path="error_page.png")
+        print("Error screenshot saved as error_page.png")
+        raise
+    
+    page_num = 1
+    
+    while len(post_urls) < limit:
+        print(f"Collecting URLs from page {page_num}...")
+        
+        # Get all post elements on current page
+        posts = page.query_selector_all(found_selector)
+        print(f"Found {len(posts)} posts on page {page_num}")
+        
+        for post in posts:
+            if len(post_urls) >= limit:
+                break
+                
+            try:
+                # Extract post title and URL
+                title_elem = post.query_selector('.title a.title')
+                if not title_elem:
+                    title_elem = post.query_selector('.title a')
+                
+                if not title_elem:
+                    print(f"Could not find title element in post {len(post_urls) + 1}")
+                    continue
+                    
+                title = title_elem.inner_text().strip()
+                post_url = title_elem.get_attribute('href')
+                
+                if not title or not post_url:
+                    print(f"Empty title or URL found in post {len(post_urls) + 1}")
+                    continue
+                
+                # Make sure URL is absolute
+                if not post_url.startswith('http'):
+                    post_url = f"https://old.reddit.com{post_url}"
+                
+                post_urls.append({
+                    'title': title,
+                    'url': post_url
+                })
+                
+                print(f"Collected post {len(post_urls)}: {title[:50]}...")
+                
+            except Exception as e:
+                print(f"Error collecting post {len(post_urls) + 1}: {e}")
+                continue
+        
+        # Try to go to next page
+        if len(post_urls) < limit:
             next_button = page.query_selector('.next-button a')
-            if next_button and posts_processed < limit:
+            if next_button:
                 next_url = next_button.get_attribute('href')
                 print(f"Navigating to next page: {next_url}")
                 page.goto(next_url)
@@ -165,12 +188,11 @@ def get_top_posts_this_year(limit: int = 1000) -> List[Dict[str, Any]]:
                 page_num += 1
                 time.sleep(1)
             else:
-                print("No next button found or limit reached")
+                print("No next button found")
                 break
-        
-        browser.close()
     
-    return posts_data
+    print(f"Collected {len(post_urls)} post URLs total")
+    return post_urls
 
 def get_top_comments(page, post_url: str) -> List[Dict[str, Any]]:
     """
