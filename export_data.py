@@ -2,7 +2,7 @@ import sqlite3
 import json
 from typing import List, Dict, Any
 
-def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path: str = '../data.js') -> None:
+def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path: str = 'data.js') -> None:
     """
     Export questions with their top 10 answers to JavaScript format
     """
