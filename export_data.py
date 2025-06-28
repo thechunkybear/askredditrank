@@ -22,7 +22,7 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
             GROUP BY q_id
             HAVING MAX(votes) >= 5000
         ),
-        quintile_answers AS (
+        answers_with_quintiles AS (
             SELECT 
                 a.q_id,
                 a.text,
@@ -31,11 +31,23 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
                 q.votes as question_votes,
                 q.timestamp,
                 q.datetime,
-                NTILE(5) OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) as quintile,
-                ROW_NUMBER() OVER (PARTITION BY a.q_id, NTILE(5) OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) ORDER BY a.votes DESC) as quintile_rank
+                NTILE(5) OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) as quintile
             FROM answers a
             JOIN questions q ON a.q_id = q.id
             JOIN question_stats qs ON a.q_id = qs.q_id
+        ),
+        quintile_answers AS (
+            SELECT 
+                q_id,
+                text,
+                votes,
+                question_text,
+                question_votes,
+                timestamp,
+                datetime,
+                quintile,
+                ROW_NUMBER() OVER (PARTITION BY q_id, quintile ORDER BY votes DESC) as quintile_rank
+            FROM answers_with_quintiles
         )
         SELECT 
             q_id as id,
