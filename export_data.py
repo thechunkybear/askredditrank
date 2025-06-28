@@ -49,6 +49,37 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
                 quintile,
                 ROW_NUMBER() OVER (PARTITION BY q_id, quintile ORDER BY votes DESC) as quintile_rank
             FROM answers_with_quintiles
+        ),
+        top_bottom_answers AS (
+            SELECT 
+                a.q_id,
+                a.text,
+                a.votes,
+                q.text as question_text,
+                q.votes as question_votes,
+                q.timestamp,
+                q.datetime,
+                CASE 
+                    WHEN ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) = 1 THEN 1
+                    WHEN ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes ASC) = 1 THEN 5
+                END as quintile
+            FROM answers a
+            JOIN questions q ON a.q_id = q.id
+            JOIN question_stats qs ON a.q_id = qs.q_id
+            WHERE LENGTH(a.text) <= 100
+            AND (ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) = 1 
+                 OR ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes ASC) = 1)
+        ),
+        all_selected_answers AS (
+            SELECT q_id, text, votes, question_text, question_votes, timestamp, datetime, quintile
+            FROM quintile_answers
+            WHERE quintile_rank = 1 AND quintile IN (2, 3, 4)
+            
+            UNION ALL
+            
+            SELECT q_id, text, votes, question_text, question_votes, timestamp, datetime, quintile
+            FROM top_bottom_answers
+            WHERE quintile IS NOT NULL
         )
         SELECT 
             q_id as id,
@@ -58,8 +89,7 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
             datetime,
             text as answer_text,
             votes as answer_votes
-        FROM quintile_answers
-        WHERE quintile_rank = 1
+        FROM all_selected_answers
         ORDER BY question_votes DESC, id, quintile
     """)
     
