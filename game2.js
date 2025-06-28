@@ -125,6 +125,7 @@ class RedditOrderingGame {
             answerDiv.className = `answer-item ${isLocked ? 'locked' : ''}`;
             answerDiv.draggable = !isLocked;
             answerDiv.dataset.answerId = answer.id;
+            answerDiv.dataset.position = index; // Track absolute position
             answerDiv.innerHTML = `
                 <div class="drag-handle">${isLocked ? '✓' : '⋮⋮'}</div>
                 <div class="rank-number">${index + 1}</div>
@@ -150,57 +151,137 @@ class RedditOrderingGame {
             e.preventDefault();
             return;
         }
+        this.isDragging = true;
         e.dataTransfer.setData('text/plain', e.target.dataset.answerId);
         e.target.classList.add('dragging');
     }
 
     handleDragOver(e) {
         e.preventDefault();
+        if (!this.isDragging) return;
+        
         const draggingElement = document.querySelector('.dragging');
         if (!draggingElement) return;
         
         const container = e.currentTarget.parentNode;
-        const afterElement = this.getDragAfterElement(container, e.clientY);
+        const targetPosition = this.getTargetPosition(container, e.clientY);
         
-        // Only allow reordering among unlocked items
-        if (afterElement == null) {
-            // Move to end, but only if the last element is not locked
-            const lastElement = container.lastElementChild;
-            if (lastElement && !lastElement.classList.contains('locked')) {
-                container.appendChild(draggingElement);
-            }
-        } else {
-            // Only insert before unlocked elements
-            if (!afterElement.classList.contains('locked') && draggingElement.nextElementSibling !== afterElement) {
-                container.insertBefore(draggingElement, afterElement);
-            }
+        if (targetPosition !== null) {
+            this.moveToUnlockedPosition(draggingElement, targetPosition, container);
         }
     }
 
     handleDrop(e) {
         e.preventDefault();
+        if (!this.isDragging) return;
         this.updateUserOrder();
     }
 
     handleDragEnd(e) {
+        this.isDragging = false;
         e.target.classList.remove('dragging');
         this.updateUserOrder();
     }
 
-    getDragAfterElement(container, y) {
-        // Only consider unlocked elements as potential drop targets
-        const draggableElements = [...container.querySelectorAll('.answer-item:not(.dragging):not(.locked)')];
+    getTargetPosition(container, y) {
+        const allElements = [...container.querySelectorAll('.answer-item')];
         
-        return draggableElements.reduce((closest, child) => {
-            const box = child.getBoundingClientRect();
-            const offset = y - box.top - box.height / 2;
-            
-            if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
-            } else {
-                return closest;
+        // Find which position the mouse is closest to
+        let targetPosition = allElements.length;
+        
+        for (let i = 0; i < allElements.length; i++) {
+            const box = allElements[i].getBoundingClientRect();
+            if (y < box.top + box.height / 2) {
+                targetPosition = i;
+                break;
             }
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+        
+        return targetPosition;
+    }
+
+    moveToUnlockedPosition(draggingElement, targetPosition, container) {
+        const allElements = [...container.children];
+        const currentPosition = allElements.indexOf(draggingElement);
+        
+        // If target position is locked, find the nearest unlocked position
+        if (targetPosition < allElements.length && allElements[targetPosition].classList.contains('locked')) {
+            targetPosition = this.findNearestUnlockedPosition(targetPosition, currentPosition, allElements);
+        }
+        
+        if (targetPosition === null || targetPosition === currentPosition) {
+            return;
+        }
+        
+        // Perform the move by rebuilding the order with locked items in fixed positions
+        this.reorderWithLockedPositions(draggingElement, targetPosition, container);
+    }
+
+    findNearestUnlockedPosition(targetPosition, currentPosition, allElements) {
+        // Search for nearest unlocked position, preferring the direction of movement
+        const direction = targetPosition > currentPosition ? 1 : -1;
+        
+        // First try in the direction of movement
+        for (let i = targetPosition; i >= 0 && i < allElements.length; i += direction) {
+            if (i !== currentPosition && !allElements[i].classList.contains('locked')) {
+                return i;
+            }
+        }
+        
+        // Then try the opposite direction
+        for (let i = targetPosition - direction; i >= 0 && i < allElements.length; i -= direction) {
+            if (i !== currentPosition && !allElements[i].classList.contains('locked')) {
+                return i;
+            }
+        }
+        
+        return null;
+    }
+
+    reorderWithLockedPositions(draggingElement, targetPosition, container) {
+        const allElements = [...container.children];
+        const currentPosition = allElements.indexOf(draggingElement);
+        
+        // Create a new order array
+        const newOrder = [...allElements];
+        
+        // Remove the dragging element
+        newOrder.splice(currentPosition, 1);
+        
+        // Insert it at the target position
+        newOrder.splice(targetPosition > currentPosition ? targetPosition - 1 : targetPosition, 0, draggingElement);
+        
+        // Now ensure locked items stay in their original positions
+        const finalOrder = new Array(allElements.length);
+        const unlockedElements = [];
+        
+        // First pass: place locked items in their fixed positions
+        allElements.forEach((element, index) => {
+            if (element.classList.contains('locked')) {
+                finalOrder[index] = element;
+            }
+        });
+        
+        // Second pass: collect unlocked elements in their new order
+        newOrder.forEach(element => {
+            if (!element.classList.contains('locked')) {
+                unlockedElements.push(element);
+            }
+        });
+        
+        // Third pass: fill remaining positions with unlocked elements
+        let unlockedIndex = 0;
+        for (let i = 0; i < finalOrder.length; i++) {
+            if (!finalOrder[i]) {
+                finalOrder[i] = unlockedElements[unlockedIndex++];
+            }
+        }
+        
+        // Rebuild the DOM
+        container.innerHTML = '';
+        finalOrder.forEach(element => {
+            container.appendChild(element);
+        });
     }
 
 
