@@ -11,28 +11,61 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
     
     print("Fetching all questions with their top 10 answers in one query...")
     
-    # Use a single query with window function to get top 10 answers per question
-    # Only include questions where the top answer has at least 100 votes
+    # Get questions where the top answer has at least 5000 votes
+    # and select 5 answers representing quintiles of the vote range
     cursor.execute("""
-        SELECT 
-            q.id,
-            q.text as question_text,
-            q.votes as question_votes,
-            q.timestamp,
-            q.datetime,
-            a.text as answer_text,
-            a.votes as answer_votes
-        FROM questions q
-        INNER JOIN (
+        WITH question_stats AS (
             SELECT 
                 q_id,
-                text,
-                votes,
-                ROW_NUMBER() OVER (PARTITION BY q_id ORDER BY votes DESC) as rn,
-                MAX(votes) OVER (PARTITION BY q_id) as max_votes
+                MAX(votes) as max_votes,
+                MIN(votes) as min_votes,
+                COUNT(*) as answer_count
             FROM answers
-        ) a ON q.id = a.q_id AND a.rn <= 10 AND a.max_votes >= 100
-        ORDER BY q.votes DESC, q.id, a.votes DESC
+            GROUP BY q_id
+            HAVING MAX(votes) >= 5000
+        ),
+        quintile_answers AS (
+            SELECT 
+                a.q_id,
+                a.text,
+                a.votes,
+                q.text as question_text,
+                q.votes as question_votes,
+                q.timestamp,
+                q.datetime,
+                qs.max_votes,
+                qs.min_votes,
+                CASE 
+                    WHEN a.votes >= qs.max_votes * 0.8 THEN 1
+                    WHEN a.votes >= qs.max_votes * 0.6 THEN 2
+                    WHEN a.votes >= qs.max_votes * 0.4 THEN 3
+                    WHEN a.votes >= qs.max_votes * 0.2 THEN 4
+                    ELSE 5
+                END as quintile,
+                ROW_NUMBER() OVER (PARTITION BY a.q_id, 
+                    CASE 
+                        WHEN a.votes >= qs.max_votes * 0.8 THEN 1
+                        WHEN a.votes >= qs.max_votes * 0.6 THEN 2
+                        WHEN a.votes >= qs.max_votes * 0.4 THEN 3
+                        WHEN a.votes >= qs.max_votes * 0.2 THEN 4
+                        ELSE 5
+                    END 
+                    ORDER BY a.votes DESC) as quintile_rank
+            FROM answers a
+            JOIN questions q ON a.q_id = q.id
+            JOIN question_stats qs ON a.q_id = qs.q_id
+        )
+        SELECT 
+            q_id as id,
+            question_text as text,
+            question_votes as votes,
+            timestamp,
+            datetime,
+            text as answer_text,
+            votes as answer_votes
+        FROM quintile_answers
+        WHERE quintile_rank = 1
+        ORDER BY question_votes DESC, id, quintile
     """)
     
     rows = cursor.fetchall()
@@ -56,7 +89,7 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
                 'top_answers': []
             }
         
-        # Add answer if it exists (LEFT JOIN might return NULL answers)
+        # Add answer (should always exist with INNER JOIN)
         if answer_text is not None:
             questions_dict[q_id]['top_answers'].append({
                 'text': answer_text,
@@ -90,7 +123,7 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
         json.dump(minified_data, f, separators=(',', ':'), ensure_ascii=False)
         f.write(';\n')
     
-    print(f"Exported {len(result)} questions with their top answers to {output_path}")
+    print(f"Exported {len(result)} questions with quintile answers to {output_path}")
     print(f"Total answers exported: {sum(len(q['top_answers']) for q in result)}")
 
 if __name__ == "__main__":
