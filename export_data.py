@@ -50,7 +50,7 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
                 ROW_NUMBER() OVER (PARTITION BY q_id, quintile ORDER BY votes DESC) as quintile_rank
             FROM answers_with_quintiles
         ),
-        top_bottom_answers AS (
+        answers_with_ranks AS (
             SELECT 
                 a.q_id,
                 a.text,
@@ -59,16 +59,28 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
                 q.votes as question_votes,
                 q.timestamp,
                 q.datetime,
-                CASE 
-                    WHEN ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) = 1 THEN 1
-                    WHEN ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes ASC) = 1 THEN 5
-                END as quintile
+                ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) as rank_desc,
+                ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes ASC) as rank_asc
             FROM answers a
             JOIN questions q ON a.q_id = q.id
             JOIN question_stats qs ON a.q_id = qs.q_id
             WHERE LENGTH(a.text) <= 100
-            AND (ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) = 1 
-                 OR ROW_NUMBER() OVER (PARTITION BY a.q_id ORDER BY a.votes ASC) = 1)
+        ),
+        top_bottom_answers AS (
+            SELECT 
+                q_id,
+                text,
+                votes,
+                question_text,
+                question_votes,
+                timestamp,
+                datetime,
+                CASE 
+                    WHEN rank_desc = 1 THEN 1
+                    WHEN rank_asc = 1 THEN 5
+                END as quintile
+            FROM answers_with_ranks
+            WHERE rank_desc = 1 OR rank_asc = 1
         ),
         all_selected_answers AS (
             SELECT q_id, text, votes, question_text, question_votes, timestamp, datetime, quintile
