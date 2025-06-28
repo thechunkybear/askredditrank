@@ -35,6 +35,7 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
             FROM answers a
             JOIN questions q ON a.q_id = q.id
             JOIN question_stats qs ON a.q_id = qs.q_id
+            WHERE LENGTH(a.text) <= 100
         ),
         quintile_answers AS (
             SELECT 
