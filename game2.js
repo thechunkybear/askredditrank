@@ -393,7 +393,8 @@ class RedditOrderingGame {
         // Create confetti pieces
         for (let i = 0; i < 100; i++) {
             const confettiPiece = document.createElement('div');
-            confettiPiece.className = 'confetti-piece';
+            const isUpArrow = Math.random() < 0.5;
+            confettiPiece.className = `confetti-piece ${isUpArrow ? 'up-arrow' : 'down-arrow'}`;
             confettiPiece.style.left = Math.random() * 100 + '%';
             confettiPiece.style.animationDelay = Math.random() * 2 + 's';
             confettiPiece.style.animationDuration = (Math.random() * 2 + 2) + 's';
