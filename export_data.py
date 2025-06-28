@@ -12,14 +12,12 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
     print("Fetching all questions with their top 10 answers in one query...")
     
     # Get questions where the top answer has at least 5000 votes
-    # and select 5 answers representing quintiles of the vote range
+    # and select 5 answers representing quintiles using proper quantile ranking
     cursor.execute("""
         WITH question_stats AS (
             SELECT 
                 q_id,
-                MAX(votes) as max_votes,
-                MIN(votes) as min_votes,
-                COUNT(*) as answer_count
+                MAX(votes) as max_votes
             FROM answers
             GROUP BY q_id
             HAVING MAX(votes) >= 5000
@@ -33,24 +31,8 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', output_path
                 q.votes as question_votes,
                 q.timestamp,
                 q.datetime,
-                qs.max_votes,
-                qs.min_votes,
-                CASE 
-                    WHEN a.votes >= qs.max_votes * 0.8 THEN 1
-                    WHEN a.votes >= qs.max_votes * 0.6 THEN 2
-                    WHEN a.votes >= qs.max_votes * 0.4 THEN 3
-                    WHEN a.votes >= qs.max_votes * 0.2 THEN 4
-                    ELSE 5
-                END as quintile,
-                ROW_NUMBER() OVER (PARTITION BY a.q_id, 
-                    CASE 
-                        WHEN a.votes >= qs.max_votes * 0.8 THEN 1
-                        WHEN a.votes >= qs.max_votes * 0.6 THEN 2
-                        WHEN a.votes >= qs.max_votes * 0.4 THEN 3
-                        WHEN a.votes >= qs.max_votes * 0.2 THEN 4
-                        ELSE 5
-                    END 
-                    ORDER BY a.votes DESC) as quintile_rank
+                NTILE(5) OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) as quintile,
+                ROW_NUMBER() OVER (PARTITION BY a.q_id, NTILE(5) OVER (PARTITION BY a.q_id ORDER BY a.votes DESC) ORDER BY a.votes DESC) as quintile_rank
             FROM answers a
             JOIN questions q ON a.q_id = q.id
             JOIN question_stats qs ON a.q_id = qs.q_id
