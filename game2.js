@@ -390,14 +390,40 @@ class RedditOrderingGame {
         confettiContainer.className = 'confetti';
         document.body.appendChild(confettiContainer);
 
-        // Create confetti pieces
-        for (let i = 0; i < 100; i++) {
+        // Create confetti pieces from all sides
+        for (let i = 0; i < 150; i++) {
             const confettiPiece = document.createElement('div');
             const isUpArrow = Math.random() < 0.5;
             confettiPiece.className = `confetti-piece ${isUpArrow ? 'up-arrow' : 'down-arrow'}`;
-            confettiPiece.style.left = Math.random() * 100 + '%';
-            confettiPiece.style.animationDelay = Math.random() * 2 + 's';
-            confettiPiece.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            
+            // Choose random side to shoot from
+            const side = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
+            
+            switch(side) {
+                case 0: // from top
+                    confettiPiece.style.left = Math.random() * 100 + '%';
+                    confettiPiece.style.top = '-20px';
+                    confettiPiece.style.animationName = 'confetti-fall-from-top';
+                    break;
+                case 1: // from right
+                    confettiPiece.style.right = '-20px';
+                    confettiPiece.style.top = Math.random() * 100 + '%';
+                    confettiPiece.style.animationName = 'confetti-fall-from-right';
+                    break;
+                case 2: // from bottom
+                    confettiPiece.style.left = Math.random() * 100 + '%';
+                    confettiPiece.style.bottom = '-20px';
+                    confettiPiece.style.animationName = 'confetti-fall-from-bottom';
+                    break;
+                case 3: // from left
+                    confettiPiece.style.left = '-20px';
+                    confettiPiece.style.top = Math.random() * 100 + '%';
+                    confettiPiece.style.animationName = 'confetti-fall-from-left';
+                    break;
+            }
+            
+            confettiPiece.style.animationDelay = Math.random() * 1 + 's';
+            confettiPiece.style.animationDuration = (Math.random() * 1 + 1) + 's';
             confettiContainer.appendChild(confettiPiece);
         }
 
@@ -406,7 +432,7 @@ class RedditOrderingGame {
             if (confettiContainer.parentNode) {
                 confettiContainer.remove();
             }
-        }, 5000);
+        }, 3000);
     }
 
     showFinalOrderWithVotes() {
