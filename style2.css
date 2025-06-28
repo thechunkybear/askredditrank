@@ -95,18 +95,22 @@ header p {
     border-radius: 8px;
     border: 2px solid #e9ecef;
     cursor: move;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     user-select: none;
 }
 
-.answer-item:hover:not(.locked) {
+.answer-item:hover:not(.locked):not(.dragging) {
     border-color: #667eea;
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+    transform: translateY(-1px);
 }
 
 .answer-item.dragging {
-    opacity: 0.5;
-    transform: rotate(5deg);
+    opacity: 1;
+    transform: scale(1.02);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    z-index: 1000;
+    position: relative;
 }
 
 .answer-item.locked {
@@ -122,6 +126,12 @@ header p {
 .answer-item.locked .drag-handle {
     color: #28a745;
     font-weight: bold;
+}
+
+.answer-item.drag-over {
+    transform: translateY(-5px);
+    background: #f8f9fa;
+    border-color: #667eea;
 }
 
 .drag-handle {
