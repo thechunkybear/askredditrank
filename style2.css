@@ -111,6 +111,8 @@ header p {
     box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
     z-index: 1000;
     position: relative;
+    background: #e3f2fd;
+    border-color: #2196f3;
 }
 
 .answer-item.locked {
