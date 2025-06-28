@@ -128,7 +128,6 @@ class RedditOrderingGame {
             answerDiv.dataset.position = index; // Track absolute position
             answerDiv.innerHTML = `
                 <div class="drag-handle">${isLocked ? '✓' : '⋮⋮'}</div>
-                <div class="rank-number">${index + 1}</div>
                 <div class="answer-text">${answer.text}</div>
                 ${isLocked ? `<div class="vote-display">${answer.votes.toLocaleString()} votes</div>` : ''}
             `;
@@ -300,8 +299,6 @@ class RedditOrderingGame {
             const answer = this.currentAnswers.find(a => a.id === answerId);
             this.userOrder.push(answer);
             
-            // Update rank number
-            element.querySelector('.rank-number').textContent = index + 1;
         });
     }
 
@@ -422,7 +419,6 @@ class RedditOrderingGame {
             answerDiv.className = 'answer-item locked';
             answerDiv.innerHTML = `
                 <div class="drag-handle">✓</div>
-                <div class="rank-number">${index + 1}</div>
                 <div class="answer-text">${answer.text}</div>
                 <div class="vote-display">${answer.votes.toLocaleString()} votes</div>
             `;
