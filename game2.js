@@ -4,7 +4,7 @@ class RedditOrderingGame {
         this.currentQuestion = null;
         this.currentAnswers = [];
         this.userOrder = [];
-        this.lockedPositions = new Set();
+        this.lockedAnswerIds = new Set();
         this.attempts = 0;
     }
 
@@ -75,7 +75,7 @@ class RedditOrderingGame {
         }
 
         // Reset game state
-        this.lockedPositions.clear();
+        this.lockedAnswerIds.clear();
         this.attempts = 0;
 
         this.selectGameData();
@@ -120,7 +120,7 @@ class RedditOrderingGame {
 
         this.userOrder.forEach((answer, index) => {
             const answerDiv = document.createElement('div');
-            const isLocked = this.lockedPositions.has(index);
+            const isLocked = this.lockedAnswerIds.has(answer.id);
             
             answerDiv.className = `answer-item ${isLocked ? 'locked' : ''}`;
             answerDiv.draggable = !isLocked;
@@ -162,29 +162,19 @@ class RedditOrderingGame {
         const container = e.currentTarget.parentNode;
         const afterElement = this.getDragAfterElement(container, e.clientY);
         
-        // Calculate what the new position would be
-        let targetPosition;
+        // Only allow reordering among unlocked items
         if (afterElement == null) {
-            targetPosition = container.children.length - 1;
+            // Move to end, but only if the last element is not locked
+            const lastElement = container.lastElementChild;
+            if (lastElement && !lastElement.classList.contains('locked')) {
+                container.appendChild(draggingElement);
+            }
         } else {
-            targetPosition = Array.from(container.children).indexOf(afterElement);
+            // Only insert before unlocked elements
+            if (!afterElement.classList.contains('locked') && draggingElement.nextElementSibling !== afterElement) {
+                container.insertBefore(draggingElement, afterElement);
+            }
         }
-        
-        // Don't allow dropping on locked positions
-        if (this.lockedPositions.has(targetPosition)) {
-            return;
-        }
-        
-        // Get current position of dragging element
-        const currentPosition = Array.from(container.children).indexOf(draggingElement);
-        
-        // Don't move if already in the right position
-        if (currentPosition === targetPosition) {
-            return;
-        }
-        
-        // Perform the move while respecting locked positions
-        this.moveElementRespectingLocks(draggingElement, targetPosition, container);
     }
 
     handleDrop(e) {
@@ -198,7 +188,8 @@ class RedditOrderingGame {
     }
 
     getDragAfterElement(container, y) {
-        const draggableElements = [...container.querySelectorAll('.answer-item:not(.dragging)')];
+        // Only consider unlocked elements as potential drop targets
+        const draggableElements = [...container.querySelectorAll('.answer-item:not(.dragging):not(.locked)')];
         
         return draggableElements.reduce((closest, child) => {
             const box = child.getBoundingClientRect();
@@ -212,59 +203,6 @@ class RedditOrderingGame {
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
-    moveElementRespectingLocks(draggingElement, targetPosition, container) {
-        // Get all elements and their current positions
-        const allElements = Array.from(container.children);
-        const currentPosition = allElements.indexOf(draggingElement);
-        
-        // Don't move if target position is locked
-        if (this.lockedPositions.has(targetPosition)) {
-            return;
-        }
-        
-        // Don't move if current position is locked (shouldn't happen, but safety check)
-        if (this.lockedPositions.has(currentPosition)) {
-            return;
-        }
-        
-        // For a simple swap between two unlocked positions, just swap the elements
-        const targetElement = allElements[targetPosition];
-        
-        // Create new order by swapping the two elements
-        const newOrder = [...allElements];
-        newOrder[currentPosition] = targetElement;
-        newOrder[targetPosition] = draggingElement;
-        
-        // Verify that all locked items remain in their original positions
-        let isValidMove = true;
-        for (let i = 0; i < newOrder.length; i++) {
-            if (this.lockedPositions.has(i)) {
-                // This position should contain the same element as before
-                if (newOrder[i] !== allElements[i]) {
-                    isValidMove = false;
-                    break;
-                }
-            }
-        }
-        
-        // Only perform the move if it doesn't displace locked items
-        if (isValidMove) {
-            // Clear the container and rebuild in the new order
-            container.innerHTML = '';
-            newOrder.forEach(element => container.appendChild(element));
-        }
-    }
-
-    wouldDisplaceLockedItems(newPosition) {
-        // Don't allow dropping directly onto a locked position
-        if (this.lockedPositions.has(newPosition)) {
-            return true;
-        }
-        
-        // Allow all other moves - we'll handle the DOM manipulation carefully
-        // to ensure locked items stay in place
-        return false;
-    }
 
     updateUserOrder() {
         const answerElements = document.querySelectorAll('.answer-item');
@@ -293,12 +231,12 @@ class RedditOrderingGame {
         // Check which positions are correct and lock them
         for (let i = 0; i < userOrderIds.length; i++) {
             if (userOrderIds[i] === correctOrderIds[i]) {
-                this.lockedPositions.add(i);
+                this.lockedAnswerIds.add(userOrderIds[i]);
             }
         }
 
         // Check if all positions are correct
-        if (this.lockedPositions.size === this.currentAnswers.length) {
+        if (this.lockedAnswerIds.size === this.currentAnswers.length) {
             this.showFinalResults();
         } else {
             // Re-render to show locked positions
@@ -312,7 +250,7 @@ class RedditOrderingGame {
         const feedbackDiv = document.createElement('div');
         feedbackDiv.className = 'partial-feedback';
         feedbackDiv.innerHTML = `
-            <p>${this.lockedPositions.size} correct! Keep going...</p>
+            <p>${this.lockedAnswerIds.size} correct! Keep going...</p>
         `;
         
         // Insert feedback after the ordering section
