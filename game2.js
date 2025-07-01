@@ -80,7 +80,6 @@ class RedditOrderingGame {
 
     setupEventListeners() {
         document.getElementById('submit-btn').addEventListener('click', () => this.submitOrder());
-        document.getElementById('new-game-btn').addEventListener('click', () => this.startNewGame());
     }
 
     startNewGame() {
@@ -89,7 +88,6 @@ class RedditOrderingGame {
         document.getElementById('error').style.display = 'none';
         document.getElementById('game-container').style.display = 'block';
         document.getElementById('results').style.display = 'none';
-        document.getElementById('new-game-btn').style.display = 'none';
         document.getElementById('submit-btn').style.display = 'inline-block';
 
         // Clean up any existing win messages
@@ -381,9 +379,8 @@ class RedditOrderingGame {
         // Show confetti animation
         this.showConfetti();
         
-        // Hide submit button and show new game button
+        // Hide submit button
         document.getElementById('submit-btn').style.display = 'none';
-        document.getElementById('new-game-btn').style.display = 'inline-block';
 
         // Create and show win message
         const winMessage = document.createElement('div');
