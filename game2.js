@@ -388,10 +388,7 @@ class RedditOrderingGame {
         winMessage.innerHTML = `
             <h3>Congratulations! 🎉</h3>
             <p>You got all ${this.currentAnswers.length} answers in the correct order!</p>
-            <p>It took you ${this.attempts} attempt${this.attempts === 1 ? '' : 's'}.</p>
-            ${this.attempts === 1 ? '<p style="font-weight: bold;">Perfect on the first try! 🏆</p>' : 
-              this.attempts <= 3 ? '<p>Excellent work! 👏</p>' : 
-              '<p>Great persistence! 💪</p>'}
+            <p>Come back tomorrow for another game!</p>
         `;
 
         // Insert win message after the ordering section
