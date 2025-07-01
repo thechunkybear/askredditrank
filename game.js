@@ -175,11 +175,8 @@ class RedditOrderingGame {
         this.isDragging = true;
         e.dataTransfer.setData('text/plain', e.target.dataset.answerId);
         
-        // Create a transparent 1x1 pixel image to hide the drag ghost
-        const img = new Image();
-        img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
-        e.dataTransfer.setDragImage(img, 0, 0);
-        
+        // Hide the original element during drag
+        e.target.style.opacity = '0';
         e.target.classList.add('dragging');
     }
 
@@ -206,6 +203,8 @@ class RedditOrderingGame {
 
     handleDragEnd(e) {
         this.isDragging = false;
+        // Show the original element again
+        e.target.style.opacity = '1';
         e.target.classList.remove('dragging');
         this.updateUserOrder();
     }
