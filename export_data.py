@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import random
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 
@@ -142,12 +143,15 @@ def export_questions_with_top_answers(db_path: str = 'askreddit.db', start_date:
     # Parse start date
     start_date_obj = datetime.strptime(start_date, '%Y%m%d')
     
+    # Create data directory if it doesn't exist
+    os.makedirs('data', exist_ok=True)
+    
     # Export one question per day starting from the specified date
     for i, question in enumerate(result):
         # Calculate the date for this question
         current_date = start_date_obj + timedelta(days=i)
         date_str = current_date.strftime('%Y%m%d')
-        filename = f'{date_str}_data.js'
+        filename = f'data/{date_str}_data.js'
         
         # Convert to minified format (single question in array)
         answers_array = [[answer['text'], answer['votes']] for answer in question['top_answers']]
