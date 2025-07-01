@@ -20,9 +20,33 @@ class RedditOrderingGame {
     }
 
     async loadData() {
-        // Data is loaded from data.js as a global variable
-        if (typeof redditData === 'undefined') {
-            throw new Error('Reddit data not found. Make sure data.js is loaded.');
+        // Get current date in YYYYMMDD format
+        const today = new Date();
+        const dateStr = today.getFullYear().toString() + 
+                       (today.getMonth() + 1).toString().padStart(2, '0') + 
+                       today.getDate().toString().padStart(2, '0');
+        
+        // Load data from the current date's file
+        const dataUrl = `data/${dateStr}_data.js`;
+        
+        try {
+            // Dynamically load the data file
+            const script = document.createElement('script');
+            script.src = dataUrl;
+            
+            // Wait for the script to load
+            await new Promise((resolve, reject) => {
+                script.onload = resolve;
+                script.onerror = () => reject(new Error(`Failed to load data file: ${dataUrl}`));
+                document.head.appendChild(script);
+            });
+            
+            // Check if data was loaded
+            if (typeof redditData === 'undefined') {
+                throw new Error(`Reddit data not found in ${dataUrl}. Make sure the file exists and contains redditData.`);
+            }
+        } catch (error) {
+            throw new Error(`Failed to load data for ${dateStr}: ${error.message}`);
         }
         
         // Convert minified format to standard format
